@@ -1,6 +1,8 @@
 from collections.abc import Iterator, Mapping
 from typing import Callable
 
+from composify import TypeInfo
+
 
 class Dependency:
     name: str
@@ -18,7 +20,7 @@ class Rule:
 
     function: Callable
     canonical_name: str
-    output_type: type
+    output_type: TypeInfo
     dependencies: Dependencies
     priority: int
     is_async: bool

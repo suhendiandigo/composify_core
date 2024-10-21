@@ -1,4 +1,4 @@
-from composify_core.rules import Rule
+from composify.rules import Rule
 
 
 def example_fn():
@@ -11,4 +11,4 @@ def test_hashing():
     
     assert hash(r1) == hash(r2), "Different hashes"
     
-    assert hash(r1.dependencies) == hash(r2).dependencies
+    assert hash(r1.dependencies) == hash(r2.dependencies)

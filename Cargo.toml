@@ -1,11 +1,11 @@
 [package]
-name = "composify_core"
+name = "composify"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "composify_core"
+name = "composify"
 crate-type = ["cdylib"]
 
 [dependencies]

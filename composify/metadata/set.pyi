@@ -1,0 +1,13 @@
+from collections.abc import Iterable
+from typing import Any, TypeVar
+
+
+T = TypeVar("T")
+
+
+class MetadataSet:
+    def __new__(items: Iterable[Any]): ...
+    def __hash__(self): ...
+    def __getitem__(self, key: type[T]) -> T: ...
+    def get(self, key: type[T]) -> T | None: ...
+
