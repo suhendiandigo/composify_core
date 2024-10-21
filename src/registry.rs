@@ -26,6 +26,15 @@ impl RuleRegistry {
         let key = type_info.type_hash;
         self.rules.get(&key)
     }
+
+    pub fn clone_ref(&self, py: Python) -> Self {
+        let mut map = HashMap::new();
+        for (key, value) in self.rules.iter() {
+            map.insert(*key, value.iter().map(|r| r.clone_ref(py)).collect());
+        }
+        Self { rules:  map}
+    }
+
 }
 
 #[pymethods]
@@ -57,8 +66,9 @@ impl RuleRegistry {
         } else {
             let mut qualified_rules: Vec<&Rule> = Vec::new();
             for e in elements {
-                let qualified = key.qualifiers.qualify(py, &e.output_type.attributes)?;
-                println!("{} {}", e, qualified);
+                let attrs = &e.output_type.attributes;
+                if true {}
+                let qualified = key.qualifiers.qualify(py, attrs)?;
                 if qualified {
                     qualified_rules.push(e);
                 }

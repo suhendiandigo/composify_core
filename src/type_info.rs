@@ -1,62 +1,43 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyTuple, PyType};
+use pyo3::types::PyType;
 use pyo3::{intern, types::PySequence};
-use std::fmt::Display;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use crate::metadata::MetadataSet;
+use crate::metadata::{AttributeQualifier, MetadataSet, Qualifiers};
+use crate::solve_parameters::{SolveCardinality, SolveParameter, SolveSpecificity};
 
-#[pyclass]
-#[derive(Debug, Default)]
-pub struct Qualifiers(pub Vec<Py<PyAny>>);
 
-impl Qualifiers {
-    pub fn clone_ref(&self, py: Python<'_>) -> Self {
-        Qualifiers(self.0.iter().map(|a| a.clone_ref(py)).collect())
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn qualify(&self, py: Python<'_>, attrs: &MetadataSet) -> PyResult<bool> {
-        let args = PyTuple::new_bound(py, [attrs.clone_ref(py).into_py(py)]);
-        for q in self.0.iter() {
-            // let q = q.bind(py).call_method1(intern!(py, "qualify"), &args)?;
-            let q = q.bind(py).call1(&args)?;
-            let q = q.downcast_into::<PyBool>()?;
-            if !q.is_true() {
-                return Ok(false);
-            }
-        }
-        Ok(true)
-    }
-}
-
-impl ToPyObject for Qualifiers {
-    fn to_object(&self, py: Python<'_>) -> pyo3::Py<PyAny> {
-        self.clone_ref(py).into_py(py)
-    }
-}
-
-fn split_metadata(metadata: &Bound<'_, PySequence>) -> PyResult<(MetadataSet, Qualifiers)> {
+fn parse_metadata(metadata: &Bound<'_, PySequence>) -> PyResult<(MetadataSet, Qualifiers, SolveParameter)> {
     let py = metadata.py();
     let mut attributes = Vec::new();
     let mut qualifiers = Vec::new();
+    let mut solve_parameter = SolveParameter::default();
     for py_element in metadata.iter()?.flatten() {
         match py_element.getattr(intern!(py, "qualify")) {
             Ok(f) => {
-                qualifiers.push(f.unbind());
+                qualifiers.push(f);
             }
             Err(..) => {
-                attributes.push(py_element);
+                if let Ok(c) = py_element.downcast::<SolveCardinality>() {
+                    let c = c.get();
+                    solve_parameter.cardinality = c.clone();
+                } else if let Ok(s) = py_element.downcast::<SolveSpecificity>() {
+                    let s = s.get();
+                    solve_parameter.specificity = s.clone();
+                } else {
+                    attributes.push(py_element);
+                }
             }
         }
     }
-    Ok((MetadataSet::new(attributes)?, Qualifiers(qualifiers)))
+    let metadata = MetadataSet::new(attributes)?;
+    if !metadata.is_empty() {
+        qualifiers.push(AttributeQualifier(Py::new(py, metadata.clone_ref(py))?).to_object(py).into_bound(py));
+    }
+    Ok((metadata, Qualifiers::__new__(qualifiers)?, solve_parameter))
 }
 
-#[pyclass(get_all, frozen)]
+#[pyclass(get_all, frozen, module="composify")]
 #[derive(Debug)]
 pub struct TypeInfo {
     pub type_name: String,
@@ -65,20 +46,9 @@ pub struct TypeInfo {
     pub inner_type: Py<PyType>,
     pub attributes: MetadataSet,
     pub qualifiers: Qualifiers,
+    pub solve_parameter: SolveParameter,
 }
 
-impl Display for TypeInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "TypeInfo({}.{}, attrs={:?}, qualifiers={})",
-            self.type_module,
-            self.type_name,
-            self.attributes,
-            self.qualifiers.0.len()
-        )
-    }
-}
 
 #[pymethods]
 impl TypeInfo {
@@ -89,9 +59,9 @@ impl TypeInfo {
         metadata: Option<Bound<'_, PySequence>>,
     ) -> PyResult<TypeInfo> {
         let t = type_annotation.downcast::<PyType>()?;
-        let (attributes, qualifiers) = match metadata {
-            Some(metadata) => split_metadata(&metadata)?,
-            None => (MetadataSet::default(), Qualifiers::default()),
+        let (attributes, qualifiers, solve_parameter) = match metadata {
+            Some(metadata) => parse_metadata(&metadata)?,
+            None => (MetadataSet::default(), Qualifiers::default(), SolveParameter::default()),
         };
         Ok(TypeInfo {
             type_name: t.name()?.to_string(),
@@ -100,6 +70,7 @@ impl TypeInfo {
             inner_type: t.clone().unbind(),
             attributes,
             qualifiers,
+            solve_parameter,
         })
     }
 
@@ -130,14 +101,15 @@ impl TypeInfo {
         TypeInfo::__new__(t, metadata)
     }
 
-    fn __repr__(&self) -> String {
-        format!(
-            "TypeInfo({}.{}, attrs={:?}, qualifiers={})",
+    pub fn __repr__(&self, py: Python) -> PyResult<String> {
+        Ok(format!(
+            "TypeInfo({}.{}, attrs={}, qualifiers={}, solve={})",
             self.type_module,
             self.type_name,
-            self.attributes,
-            self.qualifiers.0.len()
-        )
+            self.attributes.__repr__(py)?,
+            self.qualifiers.__repr__(py)?,
+            self.solve_parameter,
+        ))
     }
 
     fn __hash__(&self) -> PyResult<u64> {
@@ -156,6 +128,7 @@ impl TypeInfo {
             inner_type: self.inner_type.clone_ref(py),
             attributes: self.attributes.clone_ref(py),
             qualifiers: self.qualifiers.clone_ref(py),
+            solve_parameter: self.solve_parameter.clone(),
         }
     }
 }
@@ -173,6 +146,7 @@ impl Hash for TypeInfo {
     {
         self.type_hash.hash(state);
         self.attributes.hash(state);
+        self.qualifiers.hash(state);
     }
 }
 
@@ -181,3 +155,5 @@ impl PartialEq for TypeInfo {
         self.type_hash == other.type_hash
     }
 }
+
+impl Eq for TypeInfo {}

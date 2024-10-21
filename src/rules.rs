@@ -42,8 +42,8 @@ impl Dependency {
         })
     }
 
-    fn __repr__(&self) -> String {
-        format!("Dependency({}, type={})", &self.name, &self.typing)
+    fn __repr__(&self, py: Python) -> PyResult<String> {
+        Ok(format!("Dependency({}, type={})", &self.name, &self.typing.__repr__(py)?))
     }
 
     fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {
@@ -73,7 +73,7 @@ impl DependenciesIter {
 #[pyclass(frozen, module = "composify.rules")]
 #[derive(Debug)]
 pub struct Dependencies {
-    dependencies: Vec<Dependency>,
+    pub dependencies: Vec<Dependency>,
 }
 
 #[pymethods]
@@ -101,8 +101,24 @@ impl Dependencies {
         Py::new(slf.py(), iter)
     }
 
-    fn __repr__(&self) -> String {
-        format!("Dependencies({})", self.dependencies.len())
+    fn __repr__(&self, py: Python) -> PyResult<String> {
+        let mut repr = String::new();
+        repr.push('{');
+
+        let mut first = true;
+
+        for dependency in self.dependencies.iter() {
+            if !first {
+                repr.push_str(", ");
+            }
+            repr.push_str(&dependency.name);
+            repr.push('=');
+            repr.push_str(&dependency.typing.__repr__(py)?);
+            first = false;
+        }
+
+        repr.push('}');
+        Ok(repr)
     }
 
     fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {
@@ -142,21 +158,6 @@ pub struct Rule {
     pub is_optional: bool,
 }
 
-impl Display for Rule {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Rule({}, {}, out={}, priority={}, is_async={}, is_optional={})",
-            self.canonical_name,
-            self.function,
-            self.output_type,
-            self.priority,
-            self.is_async,
-            self.is_optional
-        )
-    }
-}
-
 #[pymethods]
 impl Rule {
     #[new]
@@ -180,8 +181,16 @@ impl Rule {
         })
     }
 
-    fn __repr__(&self) -> String {
-        format!("{}", self)
+    fn __repr__(&self, py: Python) -> PyResult<String> {
+        Ok(format!(
+            "Rule({}, {}, out={}, priority={}, is_async={}, is_optional={})",
+            self.canonical_name,
+            self.function,
+            self.output_type.__repr__(py)?,
+            self.priority,
+            self.is_async,
+            self.is_optional
+        ))
     }
 
     fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {

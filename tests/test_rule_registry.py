@@ -35,6 +35,12 @@ def test_registry():
     assert hash(r.output_type) == hash(reg.get_rules(r.output_type)[0].output_type)
 
 
+def test_type_info_qualifier():
+    stored = TypeInfo.parse(Annotated[str, NameAttr("test2")])
+    to_solve = TypeInfo.parse(Annotated[str, NameQualifier("test2")])
+    assert to_solve.qualifiers.qualify(stored.attributes)
+
+
 def test_registry_qualifier():
     reg = RuleRegistry()
     r1 = Rule(example_fn, "test", str, {"in1": str, "in2": str}, 3, False, is_optional=False)
@@ -42,6 +48,4 @@ def test_registry_qualifier():
     reg.add_rule(r1)
     reg.add_rule(r2)
 
-    print(TypeInfo.parse(Annotated[str, NameQualifier("test2")]))
-    print(reg.get_rules(Annotated[str, NameQualifier("test2")]))
     assert hash((r2,)) == hash(reg.get_rules(Annotated[str, NameQualifier("test2")]))
