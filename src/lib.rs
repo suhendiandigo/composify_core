@@ -1,11 +1,10 @@
 use pyo3::prelude::*;
 
-mod type_info;
-mod rules;
+mod metadata;
 mod registry;
 mod resolution;
-mod metadata;
-
+mod rules;
+mod type_info;
 
 /// The core module for composify written in rust.
 #[pymodule]

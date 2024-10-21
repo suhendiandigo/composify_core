@@ -1,12 +1,11 @@
 use pyo3::exceptions::PyKeyError;
+use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::PyObject;
-use pyo3::prelude::*;
 use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hasher, Hash};
+use std::hash::{DefaultHasher, Hash, Hasher};
 
-
-#[pyclass(get_all, frozen, module="composify.metadata.set", eq, hash, subclass)]
+#[pyclass(get_all, frozen, module = "composify.metadata.set", eq, hash, subclass)]
 #[derive(Debug, Default)]
 pub struct MetadataSet {
     map: HashMap<isize, PyObject>,
@@ -62,7 +61,10 @@ impl ToPyObject for MetadataSet {
 
 #[pymethods]
 impl MetadataSet {
-    pub fn get<'py>(slf: PyRef<'py, Self>, type_info: Bound<'py, PyType>) -> PyResult<Option<Bound<'py, PyAny>>> {
+    pub fn get<'py>(
+        slf: PyRef<'py, Self>,
+        type_info: Bound<'py, PyType>,
+    ) -> PyResult<Option<Bound<'py, PyAny>>> {
         let key = type_info.hash()?;
         if let Some(o) = slf.map.get(&key) {
             let py = slf.py();
@@ -72,13 +74,19 @@ impl MetadataSet {
         }
     }
 
-    pub fn __getitem__<'py>(slf: PyRef<'py, Self>, type_info: Bound<'py, PyType>) -> PyResult<Bound<'py, PyAny>> {
+    pub fn __getitem__<'py>(
+        slf: PyRef<'py, Self>,
+        type_info: Bound<'py, PyType>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let key = type_info.hash()?;
         if let Some(o) = slf.map.get(&key) {
             let py = slf.py();
             Ok(o.into_py(py).into_bound(py))
         } else {
-            Err(PyKeyError::new_err(format!("Does not contain object of type {}", type_info.repr()?)))
+            Err(PyKeyError::new_err(format!(
+                "Does not contain object of type {}",
+                type_info.repr()?
+            )))
         }
     }
 }

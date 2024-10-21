@@ -1,16 +1,15 @@
-use pyo3::{intern, prelude::*, types::{PyBool, PyTuple}};
+use pyo3::{prelude::*, types::PyTuple};
 use std::collections::HashMap;
 
-use crate::{rules::Rule, type_info::{TypeInfo}};
+use crate::{rules::Rule, type_info::TypeInfo};
 
-#[pyclass(module="composify.registry")]
+#[pyclass(module = "composify.registry")]
 #[derive(Default)]
 pub struct RuleRegistry {
-    rules: HashMap<isize, Vec<Rule>>
+    rules: HashMap<isize, Vec<Rule>>,
 }
 
 impl RuleRegistry {
-
     pub fn add(&mut self, rule: Rule) {
         let key = rule.output_type.type_hash;
         let rules = match self.rules.get_mut(&key) {
@@ -18,7 +17,7 @@ impl RuleRegistry {
             None => {
                 self.rules.insert(key, Vec::new());
                 self.rules.get_mut(&key).unwrap()
-            },
+            }
         };
         rules.push(rule)
     }
@@ -27,7 +26,6 @@ impl RuleRegistry {
         let key = type_info.type_hash;
         self.rules.get(&key)
     }
-
 }
 
 #[pymethods]
@@ -43,7 +41,10 @@ impl RuleRegistry {
         Ok(())
     }
 
-    pub fn get_rules<'py>(&mut self, type_info: Bound<'py, PyAny>) -> PyResult<Option<Bound<'py, PyTuple>>> {
+    pub fn get_rules<'py>(
+        &mut self,
+        type_info: Bound<'py, PyAny>,
+    ) -> PyResult<Option<Bound<'py, PyTuple>>> {
         // let rule = rule.downcast::<Rule>()?;
         let py = type_info.py();
         let key = TypeInfo::parse(type_info)?;

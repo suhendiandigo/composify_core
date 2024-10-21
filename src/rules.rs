@@ -1,22 +1,12 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyFunction, PyMapping, PyString,};
+use pyo3::types::{PyFunction, PyMapping, PyString};
 
 use std::fmt::Display;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::type_info::TypeInfo;
 
-/// Hack: workaround for https://github.com/PyO3/pyo3/issues/759
-// #[pymodule_init]
-// fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
-//     Python::with_gil(|py| {
-//         py.import_bound("sys")?
-//             .getattr("modules")?
-//             .set_item("composify_core.rules", m)
-//     })
-// }
-
-#[pyclass(get_all, frozen, module="composify.rules")]
+#[pyclass(get_all, frozen, module = "composify.rules")]
 #[derive(Debug)]
 pub struct Dependency {
     name: String,
@@ -46,8 +36,8 @@ impl Dependency {
 impl Dependency {
     #[new]
     fn new(name: Bound<'_, PyString>, typing: Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Dependency{
-            name: String::from(name.to_str()?), 
+        Ok(Dependency {
+            name: String::from(name.to_str()?),
             typing: TypeInfo::parse(typing)?,
         })
     }
@@ -64,7 +54,7 @@ impl Dependency {
     }
 }
 
-#[pyclass(module="composify.rules")]
+#[pyclass(module = "composify.rules")]
 pub struct DependenciesIter {
     inner: std::vec::IntoIter<Dependency>,
 }
@@ -80,7 +70,7 @@ impl DependenciesIter {
     }
 }
 
-#[pyclass(frozen, module="composify.rules")]
+#[pyclass(frozen, module = "composify.rules")]
 #[derive(Debug)]
 pub struct Dependencies {
     dependencies: Vec<Dependency>,
@@ -97,7 +87,7 @@ impl Dependencies {
             result.push(Dependency::new(name, typing)?);
         }
         result.sort_by(|a, b| a.name.cmp(&b.name));
-        Ok(Dependencies{
+        Ok(Dependencies {
             dependencies: result,
         })
     }
@@ -134,16 +124,14 @@ impl Dependencies {
 }
 
 impl ToPyObject for Dependencies {
-    fn to_object(&self, py: Python<'_>) -> pyo3::Py<PyAny> { 
+    fn to_object(&self, py: Python<'_>) -> pyo3::Py<PyAny> {
         let v: Vec<Dependency> = self.dependencies.iter().map(|d| d.clone_ref(py)).collect();
-        let d = Dependencies {
-            dependencies: v
-        };
+        let d = Dependencies { dependencies: v };
         d.into_py(py)
     }
 }
 
-#[pyclass(get_all, frozen, module="composify.rules")]
+#[pyclass(get_all, frozen, module = "composify.rules")]
 pub struct Rule {
     pub function: Py<PyFunction>,
     pub canonical_name: String,
@@ -156,7 +144,16 @@ pub struct Rule {
 
 impl Display for Rule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Rule({}, {}, out={}, priority={}, is_async={}, is_optional={})", self.canonical_name, self.function, self.output_type, self.priority, self.is_async, self.is_optional)
+        write!(
+            f,
+            "Rule({}, {}, out={}, priority={}, is_async={}, is_optional={})",
+            self.canonical_name,
+            self.function,
+            self.output_type,
+            self.priority,
+            self.is_async,
+            self.is_optional
+        )
     }
 }
 
@@ -172,7 +169,7 @@ impl Rule {
         is_async: bool,
         is_optional: bool,
     ) -> PyResult<Self> {
-        Ok(Self{
+        Ok(Self {
             function: function.into(),
             canonical_name,
             output_type: TypeInfo::parse(output_type)?,
@@ -206,7 +203,7 @@ impl Rule {
 
 impl Rule {
     pub fn clone_ref(&self, py: Python<'_>) -> Self {
-        Self{
+        Self {
             function: self.function.clone_ref(py),
             canonical_name: self.canonical_name.clone(),
             output_type: self.output_type.clone_ref(py),
@@ -219,7 +216,7 @@ impl Rule {
 }
 
 impl ToPyObject for Rule {
-    fn to_object(&self, py: Python<'_>) -> pyo3::Py<PyAny> { 
+    fn to_object(&self, py: Python<'_>) -> pyo3::Py<PyAny> {
         let r = self.clone_ref(py);
         r.into_py(py)
     }

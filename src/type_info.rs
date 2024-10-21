@@ -1,11 +1,10 @@
 use pyo3::prelude::*;
+use pyo3::types::{PyBool, PyTuple, PyType};
 use pyo3::{intern, types::PySequence};
 use std::fmt::Display;
-use std::hash::{DefaultHasher, Hasher, Hash};
-use pyo3::types::{PyBool, PyTuple, PyType};
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::metadata::MetadataSet;
-
 
 #[pyclass]
 #[derive(Debug, Default)]
@@ -48,7 +47,7 @@ fn split_metadata(metadata: &Bound<'_, PySequence>) -> PyResult<(MetadataSet, Qu
         match py_element.getattr(intern!(py, "qualify")) {
             Ok(f) => {
                 qualifiers.push(f.unbind());
-            },
+            }
             Err(..) => {
                 attributes.push(py_element);
             }
@@ -70,7 +69,14 @@ pub struct TypeInfo {
 
 impl Display for TypeInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TypeInfo({}.{}, attrs={:?}, qualifiers={})", self.type_module, self.type_name, self.attributes, self.qualifiers.0.len())
+        write!(
+            f,
+            "TypeInfo({}.{}, attrs={:?}, qualifiers={})",
+            self.type_module,
+            self.type_name,
+            self.attributes,
+            self.qualifiers.0.len()
+        )
     }
 }
 
@@ -78,7 +84,10 @@ impl Display for TypeInfo {
 impl TypeInfo {
     #[new]
     #[pyo3(signature = (type_annotation, metadata=None))]
-    pub fn __new__(type_annotation: &Bound<'_, PyType>, metadata: Option<Bound<'_, PySequence>>) -> PyResult<TypeInfo> {
+    pub fn __new__(
+        type_annotation: &Bound<'_, PyType>,
+        metadata: Option<Bound<'_, PySequence>>,
+    ) -> PyResult<TypeInfo> {
         let t = type_annotation.downcast::<PyType>()?;
         let (attributes, qualifiers) = match metadata {
             Some(metadata) => split_metadata(&metadata)?,
@@ -110,7 +119,11 @@ impl TypeInfo {
             }
         };
         let metadata = if type_annotation.hasattr(intern!(py, "__metadata__"))? {
-            Some(type_annotation.getattr(intern!(py, "__metadata__"))?.downcast_into::<PySequence>()?)
+            Some(
+                type_annotation
+                    .getattr(intern!(py, "__metadata__"))?
+                    .downcast_into::<PySequence>()?,
+            )
         } else {
             None
         };
@@ -118,7 +131,13 @@ impl TypeInfo {
     }
 
     fn __repr__(&self) -> String {
-        format!("TypeInfo({}.{}, attrs={:?}, qualifiers={})", self.type_module, self.type_name, self.attributes, self.qualifiers.0.len())
+        format!(
+            "TypeInfo({}.{}, attrs={:?}, qualifiers={})",
+            self.type_module,
+            self.type_name,
+            self.attributes,
+            self.qualifiers.0.len()
+        )
     }
 
     fn __hash__(&self) -> PyResult<u64> {
@@ -148,7 +167,10 @@ impl ToPyObject for TypeInfo {
 }
 
 impl Hash for TypeInfo {
-    fn hash<H>(&self, state: &mut H) where H: std::hash::Hasher { 
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
         self.type_hash.hash(state);
         self.attributes.hash(state);
     }
