@@ -65,6 +65,17 @@ pub struct SolveParameter {
 }
 
 
+#[pymethods]
+impl SolveParameter {
+    #[new]
+    pub fn __new__(specificity: &SolveSpecificity, cardinality: &SolveCardinality) -> Self {
+        Self {
+            specificity: specificity.clone(),
+            cardinality: cardinality.clone(),
+        }
+    }
+}
+
 impl Display for SolveParameter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Solve(specificity={}, cardinality={})", self.specificity, self.cardinality)

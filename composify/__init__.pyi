@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import Any, Iterable
 from composify.metadata import MetadataSet
-from composify.metadata.qualifiers import BaseQualifierMetadata
+from composify.solutions import SolveParameter
 
 class Qualifiers:
     def __new__(items: Iterable[Any]): ...
@@ -17,6 +17,7 @@ class TypeInfo:
     inner_type: type
     attributes: MetadataSet
     qualifiers: Qualifiers
+    solve_parameter: SolveParameter
 
     def __new__(type_info: type, metadata: Sequence[Any]): ...
 

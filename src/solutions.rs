@@ -42,14 +42,14 @@ impl SolutionArgs {
 #[pyclass(get_all, frozen, module = "composify.solutions")]
 pub struct Solution {
     pub rule: Rule,
-    pub parameters: SolutionArgs,
+    pub args: SolutionArgs,
 }
 
 impl Solution {
     pub fn clone_ref(&self, py: Python) -> Self {
         Solution {
             rule: self.rule.clone_ref(py),
-            parameters: self.parameters.clone_ref(py)
+            args: self.args.clone_ref(py)
         }
     }
 }

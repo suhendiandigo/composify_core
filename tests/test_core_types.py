@@ -6,6 +6,7 @@ from composify.metadata.attributes import AttributeSet, BaseAttributeMetadata
 from composify.metadata.qualifiers import BaseQualifierMetadata
 from composify.registry import RuleRegistry
 from composify.rules import Rule
+from composify.solutions import SolveCardinality, SolveSpecificity
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,14 @@ def test_type_info_qualifier():
     stored = TypeInfo.parse(Annotated[str, NameAttr("test2")])
     to_solve = TypeInfo.parse(Annotated[str, NameQualifier("test2")])
     assert to_solve.qualifiers.qualify(stored.attributes)
+
+
+def test_solve_parameter():
+    stored = TypeInfo.parse(Annotated[str, NameAttr("test2")])
+    to_solve = TypeInfo.parse(Annotated[str, NameQualifier("test2"), SolveCardinality.Exhaustive, SolveSpecificity.AllowSuperclass])
+    assert to_solve.qualifiers.qualify(stored.attributes)
+    assert to_solve.solve_parameter.cardinality == SolveCardinality.Exhaustive
+    assert to_solve.solve_parameter.specificity == SolveSpecificity.AllowSuperclass
 
 
 def test_registry_qualifier():
