@@ -1,0 +1,37 @@
+from collections.abc import Iterator, Mapping
+from typing import Callable
+
+
+class Dependency:
+    name: str
+    typing: type
+
+    def __hash__(self): ...
+
+
+class Dependencies:
+    def __iter__(self) -> Iterator[Dependency]: ...
+    def __hash__(self): ...
+
+
+class Rule:
+
+    function: Callable
+    canonical_name: str
+    output_type: type
+    dependencies: Dependencies
+    priority: int
+    is_async: bool
+    is_optional: bool
+
+    def __new__(
+        function: Callable,
+        canonical_name: str,
+        output_type: type,
+        dependencies: Mapping[str, type],
+        priority: int,
+        is_async: bool,
+        is_optional: bool
+    ): ...
+
+    def __hash__(self): ...
