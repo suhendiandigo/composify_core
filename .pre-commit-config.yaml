@@ -1,0 +1,33 @@
+repos:
+- repo: https://github.com/hadialqattan/pycln
+  rev: v2.4.0
+  hooks:
+    - id: pycln
+      args: [--config=pyproject.toml, --all]
+- repo: https://github.com/PyCQA/isort
+  rev: 5.13.2
+  hooks:
+    - id: isort
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.6.7
+  hooks:
+    - id: ruff-format
+    - id: ruff
+- repo: local
+  hooks:
+    - id: fmt
+      name: fmt
+      description: Format files with cargo fmt.
+      entry: cargo fmt
+      language: system
+      types: [rust]
+      args: ["--"]
+    - id: clippy
+      name: clippy
+      description: Lint rust sources
+      entry: cargo clippy
+      language: system
+      args: ["--", "-D", "warnings"]
+      types: [rust]
+      pass_filenames: false
+

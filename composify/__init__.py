@@ -1,4 +1,4 @@
-from .composify import *
+"""Composify framework, simplify object construction using set of rules."""
 
 __doc__ = composify.__doc__
 if hasattr(composify, "__all__"):

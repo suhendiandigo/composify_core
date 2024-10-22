@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "composify"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -13,3 +13,90 @@ classifiers = [
 dynamic = ["version"]
 [tool.maturin]
 features = ["pyo3/extension-module"]
+
+
+[tool.black]
+line-length = 79
+
+[tool.isort]
+profile = "black"
+line_length = 79
+
+[tool.flake8]
+max-line-length = 80
+extend-select = "B950"
+extend-ignore = "E203,E701"
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist"
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    ".",
+    "tests",
+]
+testpaths = [
+    "tests/unit",
+    "tests/integration",
+]
+
+[tool.coverage.run]
+source = ['composify']
+branch = true
+relative_files = true
+context = '${CONTEXT}'
+
+[tool.coverage.report]
+precision = 2
+
+exclude_lines = [
+    'pragma: no cover',
+    'raise NotImplementedError',
+    'if TYPE_CHECKING:',
+    'if typing.TYPE_CHECKING:',
+    '@overload',
+    '@typing.overload',
+    '\(Protocol\):$',
+    'typing.assert_never',
+    'assert_never',
+]
+
+[tool.ruff]
+line-length = 80
+target-version = 'py310'
+
+[tool.ruff.lint]
+select = [
+    'F',      # Pyflakes
+    'E',      # pycodestyle (Error)
+    'I',      # isort
+    'D',      # pydocstyle
+    'UP',     # pyupgrade
+    'YTT',    # flake8-2020
+    'B',      # flake8-bugbear
+    'T10',    # flake8-debugger
+    'T20',    # flake8-print
+    'C4',     # flake8-comprehensions
+    'PYI006', # flake8-pyi
+]
+ignore = ['D105', 'D107', 'D205', 'D415', 'E501', 'B011', 'B028', 'B904']
+flake8-quotes = {inline-quotes = 'double', multiline-quotes = 'double'}
+isort = { known-first-party = ['composify', 'tests'] }
+pydocstyle = { convention = 'google' }
+
+[tool.ruff.lint.per-file-ignores]
+'tests/*' = ['D', 'B', 'C4']
+'composify/__init__.py' = ['F821']
+'composify/**/*.pyi' = ['F821']
+
+[tool.ruff.format]
+quote-style = 'double'
+
+[tool.pycln]
+includes = [
+    "composify/**/*.py",
+    "tests/**/*.py",
+]

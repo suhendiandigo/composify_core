@@ -8,7 +8,7 @@ def example_fn():
 def test_hashing():
     r1 = Rule(example_fn, "test", str, {"in1": str, "in2": str}, 3, False)
     r2 = Rule(example_fn, "test", str, {"in1": str, "in2": str}, 3, False)
-    
+
     assert hash(r1) == hash(r2), "Different hashes"
-    
+
     assert hash(r1.dependencies) == hash(r2.dependencies)

@@ -1,8 +1,6 @@
-from collections.abc import Iterator, Mapping
-from typing import Callable
+from collections.abc import Callable, Iterator, Mapping
 
 from composify import TypeInfo
-
 
 class Dependency:
     name: str
@@ -10,14 +8,11 @@ class Dependency:
 
     def __hash__(self): ...
 
-
 class Dependencies:
     def __iter__(self) -> Iterator[Dependency]: ...
     def __hash__(self): ...
 
-
 class Rule:
-
     function: Callable
     canonical_name: str
     output_type: TypeInfo
@@ -33,5 +28,4 @@ class Rule:
         priority: int,
         is_async: bool,
     ): ...
-
     def __hash__(self): ...

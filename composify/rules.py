@@ -16,23 +16,21 @@ Example:
 
 import asyncio
 import inspect
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from functools import partial
 from types import FrameType, ModuleType
-from typing import (
-    Annotated,
-    Any,
-    Callable,
-    ParamSpec,
-    TypeVar,
-    get_type_hints,
-)
+from typing import Annotated, Any, ParamSpec, TypeVar, get_type_hints
 
-from composify.errors import InvalidTypeAnnotation, MissingParameterTypeAnnotation, MissingReturnTypeAnnotation
 from composify.core.rules import Rule
+from composify.errors import (
+    InvalidTypeAnnotation,
+    MissingParameterTypeAnnotation,
+    MissingReturnTypeAnnotation,
+)
 from composify.qualifiers import Qualifier
 
 __all__ = ("rule", "as_rule")
+
 
 def ensure_type_annotation(
     *,
@@ -55,13 +53,12 @@ P = ParamSpec("P")
 
 RULE_ATTR = "__rule__"
 
+
 class ConstructRuleSet(tuple[Rule, ...]):
     pass
 
 
-def _add_qualifiers(
-    type_: Any, qualifiers: Iterable[Qualifier] | None
-) -> Any:
+def _add_qualifiers(type_: Any, qualifiers: Iterable[Qualifier] | None) -> Any:
     if qualifiers is not None:
         for qualifier in qualifiers:
             type_ = Annotated[type_, qualifier]
@@ -119,20 +116,17 @@ def _rule_decorator(
         raise_type=MissingReturnTypeAnnotation,
     )
 
-    parameter_types: Mapping[str, Any] = dict(
-        (
-            parameter,
-            _add_qualifiers(
-                ensure_type_annotation(
-                    type_annotation=type_hints.get(parameter),
-                    name=f"{func_id} parameter {parameter}",
-                    raise_type=MissingParameterTypeAnnotation,
-                ),
-                dependency_qualifiers,
+    parameter_types: Mapping[str, Any] = {
+        parameter: _add_qualifiers(
+            ensure_type_annotation(
+                type_annotation=type_hints.get(parameter),
+                name=f"{func_id} parameter {parameter}",
+                raise_type=MissingParameterTypeAnnotation,
             ),
+            dependency_qualifiers,
         )
         for parameter in func_params
-    )
+    }
     effective_name = resolve_type_name(decorated)
 
     rule = Rule(

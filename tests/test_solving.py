@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -7,8 +6,13 @@ import pytest
 from composify.core.registry import RuleRegistry
 from composify.core.solutions import SolveCardinality
 from composify.core.solver import Solver
-from composify.errors import CyclicDependencyError, NoSolutionError, NotExclusiveError, SolveFailureError
-from composify.rules import collect_rules, rule, as_rule
+from composify.errors import (
+    CyclicDependencyError,
+    NoSolutionError,
+    NotExclusiveError,
+    SolveFailureError,
+)
+from composify.rules import as_rule, collect_rules, rule
 
 
 @dataclass
@@ -33,13 +37,14 @@ def example_b(a: A) -> B:
 
 rules = collect_rules()
 
+
 def test_solving():
     registry = RuleRegistry()
     registry.add_rules(rules)
     solver = Solver(registry)
 
     solutions = solver.solve_for(B)
-    
+
     assert len(solutions) == 1
     assert solutions[0].rule == as_rule(example_b)
     assert solutions[0].args[0].name == "a"
@@ -75,6 +80,7 @@ def test_no_solution():
 @rule
 def example_a2() -> A:
     return A(5)
+
 
 def test_not_exclusive():
     registry = RuleRegistry()

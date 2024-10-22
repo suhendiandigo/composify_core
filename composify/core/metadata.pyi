@@ -1,9 +1,7 @@
 from collections.abc import Iterable
 from typing import Any, TypeVar
 
-
 T = TypeVar("T")
-
 
 class MetadataSet:
     def __new__(items: Iterable[Any]): ...
@@ -12,7 +10,6 @@ class MetadataSet:
     def get(self, key: type[T]) -> T | None: ...
     def issuperset(self, other: MetadataSet) -> bool: ...
     def issubset(self, other: MetadataSet) -> bool: ...
-
 
 class Qualifiers:
     def __new__(items: Iterable[Any]): ...

@@ -1,8 +1,8 @@
 from collections.abc import Sequence
-from typing import Any, Iterable
+from typing import Any
+
 from composify.metadata import MetadataSet
 from composify.solutions import SolveParameter
-
 
 class TypeInfo:
     type_name: str
@@ -14,9 +14,7 @@ class TypeInfo:
     solve_parameter: SolveParameter
 
     def __new__(type_info: type, metadata: Sequence[Any]): ...
-
     @staticmethod
-    def parse(any_type: Any) -> "TypeInfo": ...
-
+    def parse(any_type: Any) -> TypeInfo: ...
     def __hash__(self): ...
     def __repr__(self): ...

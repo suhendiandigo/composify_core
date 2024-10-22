@@ -151,10 +151,20 @@ impl TypeInfo {
             }
         }
         if annotations.is_empty() {
-            format!("{}({}{})", self.canonical_name(), self.solve_parameter.specificity.symbol(), self.solve_parameter.cardinality.symbol())
-
+            format!(
+                "{}({}{})",
+                self.canonical_name(),
+                self.solve_parameter.specificity.symbol(),
+                self.solve_parameter.cardinality.symbol()
+            )
         } else {
-            format!("{}({}{}, {})", self.canonical_name(), self.solve_parameter.specificity.symbol(), self.solve_parameter.cardinality.symbol(), annotations.join(", "))
+            format!(
+                "{}({}{}, {})",
+                self.canonical_name(),
+                self.solve_parameter.specificity.symbol(),
+                self.solve_parameter.cardinality.symbol(),
+                annotations.join(", ")
+            )
         }
     }
 }

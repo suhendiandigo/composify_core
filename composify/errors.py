@@ -1,5 +1,8 @@
-from collections.abc import Iterable
-from typing import Sequence, TypeAlias
+"""Module containing errors classes."""
+
+from collections.abc import Iterable, Sequence
+from typing import TypeAlias
+
 from composify.core import TypeInfo
 from composify.core.solutions import Solution
 
@@ -8,6 +11,7 @@ class InvalidTypeAnnotation(TypeError):
     """Raised for invalid type annotation."""
 
     pass
+
 
 class MissingReturnTypeAnnotation(InvalidTypeAnnotation):
     """Raised when type annotation for a return value is missing."""
@@ -24,10 +28,9 @@ class MissingParameterTypeAnnotation(InvalidTypeAnnotation):
 Trace: TypeAlias = tuple[str, TypeInfo]
 Traces: TypeAlias = Sequence[Trace]
 
+
 def _format_trace(trace: Trace) -> str:
-    return (
-        f"({trace[0]}: {trace[1]})"
-    )
+    return f"({trace[0]}: {trace[1]})"
 
 
 def _format_traces(traces: Traces) -> str:
@@ -37,16 +40,14 @@ def _format_traces(traces: Traces) -> str:
 
 class SolvingError(Exception):
     """Solving related errors."""
+
     pass
 
 
 class SolveFailureError(SolvingError):
-    """Raised when no solutions are found.
-    """
+    """Raised when no solutions are found."""
 
-    def __init__(
-        self, errors: Iterable[SolvingError]
-    ) -> None:
+    def __init__(self, errors: Iterable[SolvingError]) -> None:
         error_strings = tuple(
             f"- {_format_traces(error.traces)}: {error}"
             if isinstance(error, TracedSolvingError)
@@ -54,9 +55,7 @@ class SolveFailureError(SolvingError):
             for error in errors
         )
         error_string = "\n".join(error_strings)
-        super().__init__(
-            f"Failed to find solutions:\n{error_string}"
-        )
+        super().__init__(f"Failed to find solutions:\n{error_string}")
         self.errors = errors
 
     def contains(self, exc_type: type[SolvingError]) -> bool:
@@ -88,26 +87,20 @@ class NoSolutionError(TracedSolvingError):
     """Raised when there is no available solution."""
 
     def __init__(self, traces: Traces) -> None:
-        super().__init__(
-            traces, "Unable to find solution."
-        )
+        super().__init__(traces, "Unable to find solution.")
 
 
 class CyclicDependencyError(TracedSolvingError):
     """Raised when a cyclic dependency occurred in the dependency graph."""
 
     def __init__(self, traces: Traces) -> None:
-        super().__init__(
-            traces, "Encountered cyclic dependency."
-        )
+        super().__init__(traces, "Encountered cyclic dependency.")
 
 
 class NotExclusiveError(TracedSolvingError):
     """Raised when a dependency contains multiple solution in Exclusive cardinality."""
 
-    def __init__(
-        self, solutions: Sequence[Solution], traces: Traces
-    ) -> None:
+    def __init__(self, solutions: Sequence[Solution], traces: Traces) -> None:
         self.solutions = solutions
         super().__init__(
             traces,
