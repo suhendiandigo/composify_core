@@ -3,7 +3,7 @@
 from typing import Any
 from .base import BaseMetadata, _collect_metadata
 
-from .set import MetadataSet
+from composify.core.metadata import MetadataSet
 
 
 class BaseAttributeMetadata(BaseMetadata):

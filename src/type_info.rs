@@ -6,8 +6,9 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use crate::metadata::{AttributeQualifier, MetadataSet, Qualifiers};
 use crate::solve_parameters::{SolveCardinality, SolveParameter, SolveSpecificity};
 
-
-fn parse_metadata(metadata: &Bound<'_, PySequence>) -> PyResult<(MetadataSet, Qualifiers, SolveParameter)> {
+fn parse_metadata(
+    metadata: &Bound<'_, PySequence>,
+) -> PyResult<(MetadataSet, Qualifiers, SolveParameter)> {
     let py = metadata.py();
     let mut attributes = Vec::new();
     let mut qualifiers = Vec::new();
@@ -32,12 +33,16 @@ fn parse_metadata(metadata: &Bound<'_, PySequence>) -> PyResult<(MetadataSet, Qu
     }
     let metadata = MetadataSet::new(attributes)?;
     if !metadata.is_empty() {
-        qualifiers.push(AttributeQualifier(Py::new(py, metadata.clone_ref(py))?).to_object(py).into_bound(py));
+        qualifiers.push(
+            AttributeQualifier(Py::new(py, metadata.clone_ref(py))?)
+                .to_object(py)
+                .into_bound(py),
+        );
     }
     Ok((metadata, Qualifiers::__new__(qualifiers)?, solve_parameter))
 }
 
-#[pyclass(get_all, frozen, module="composify")]
+#[pyclass(get_all, frozen, module = "composify")]
 #[derive(Debug)]
 pub struct TypeInfo {
     pub type_name: String,
@@ -48,7 +53,6 @@ pub struct TypeInfo {
     pub qualifiers: Qualifiers,
     pub solve_parameter: SolveParameter,
 }
-
 
 #[pymethods]
 impl TypeInfo {
@@ -61,7 +65,11 @@ impl TypeInfo {
         let t = type_annotation.downcast::<PyType>()?;
         let (attributes, qualifiers, solve_parameter) = match metadata {
             Some(metadata) => parse_metadata(&metadata)?,
-            None => (MetadataSet::default(), Qualifiers::default(), SolveParameter::default()),
+            None => (
+                MetadataSet::default(),
+                Qualifiers::default(),
+                SolveParameter::default(),
+            ),
         };
         Ok(TypeInfo {
             type_name: t.name()?.to_string(),
@@ -153,6 +161,8 @@ impl Hash for TypeInfo {
 impl PartialEq for TypeInfo {
     fn eq(&self, other: &Self) -> bool {
         self.type_hash == other.type_hash
+            && self.attributes == other.attributes
+            && self.qualifiers == other.qualifiers
     }
 }
 

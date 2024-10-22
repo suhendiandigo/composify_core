@@ -2,8 +2,7 @@ use std::fmt::Display;
 
 use pyo3::prelude::*;
 
-
-#[pyclass(eq, eq_int, frozen, module = "composify.solutions")]
+#[pyclass(eq, eq_int, frozen, module = "composify.core.solutions")]
 #[derive(PartialEq, Clone, Debug)]
 pub enum SolveCardinality {
     /// Solve for all possible solutions.
@@ -30,7 +29,7 @@ impl Display for SolveCardinality {
     }
 }
 
-#[pyclass(eq, eq_int, frozen, module = "composify.solutions")]
+#[pyclass(eq, eq_int, frozen, module = "composify.core.solutions")]
 #[derive(PartialEq, Clone, Debug)]
 pub enum SolveSpecificity {
     /// Solve for exact type.
@@ -57,13 +56,12 @@ impl Display for SolveSpecificity {
     }
 }
 
-#[pyclass(get_all, frozen, eq, module = "composify.solutions")]
+#[pyclass(get_all, frozen, eq, module = "composify.core.solutions")]
 #[derive(PartialEq, Default, Clone, Debug)]
 pub struct SolveParameter {
     pub specificity: SolveSpecificity,
     pub cardinality: SolveCardinality,
 }
-
 
 #[pymethods]
 impl SolveParameter {
@@ -78,6 +76,10 @@ impl SolveParameter {
 
 impl Display for SolveParameter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Solve(specificity={}, cardinality={})", self.specificity, self.cardinality)
+        write!(
+            f,
+            "Solve(specificity={}, cardinality={})",
+            self.specificity, self.cardinality
+        )
     }
 }

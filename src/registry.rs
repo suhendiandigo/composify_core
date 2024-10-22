@@ -1,12 +1,15 @@
-use pyo3::{prelude::*, types::PyTuple};
-use std::collections::HashMap;
+use pyo3::{
+    prelude::*,
+    types::{PySequence, PyTuple},
+};
+use std::collections::{BinaryHeap, HashMap};
 
 use crate::{rules::Rule, type_info::TypeInfo};
 
-#[pyclass(module = "composify.registry")]
+#[pyclass(module = "composify.core.registry")]
 #[derive(Default)]
 pub struct RuleRegistry {
-    rules: HashMap<isize, Vec<Rule>>,
+    rules: HashMap<isize, BinaryHeap<Rule>>,
 }
 
 impl RuleRegistry {
@@ -15,14 +18,14 @@ impl RuleRegistry {
         let rules = match self.rules.get_mut(&key) {
             Some(r) => r,
             None => {
-                self.rules.insert(key, Vec::new());
+                self.rules.insert(key, BinaryHeap::new());
                 self.rules.get_mut(&key).unwrap()
             }
         };
         rules.push(rule)
     }
 
-    pub fn get(&self, type_info: &TypeInfo) -> Option<&Vec<Rule>> {
+    pub fn get(&self, type_info: &TypeInfo) -> Option<&BinaryHeap<Rule>> {
         let key = type_info.type_hash;
         self.rules.get(&key)
     }
@@ -32,9 +35,8 @@ impl RuleRegistry {
         for (key, value) in self.rules.iter() {
             map.insert(*key, value.iter().map(|r| r.clone_ref(py)).collect());
         }
-        Self { rules:  map}
+        Self { rules: map }
     }
-
 }
 
 #[pymethods]
@@ -44,30 +46,37 @@ impl RuleRegistry {
         RuleRegistry::default()
     }
 
-    pub fn add_rule(&mut self, rule: Bound<'_, Rule>) -> PyResult<()> {
+    pub fn add_rule(&mut self, rule: Bound<Rule>) -> PyResult<()> {
         // let rule = rule.downcast::<Rule>()?;
         self.add(rule.get().clone_ref(rule.py()));
         Ok(())
     }
 
+    pub fn add_rules(&mut self, rules: Bound<PySequence>) -> PyResult<()> {
+        // let rule = rule.downcast::<Rule>()?;
+        for rule in rules.iter()? {
+            let rule = rule?;
+            self.add(rule.downcast::<Rule>()?.get().clone_ref(rule.py()));
+        }
+        Ok(())
+    }
     pub fn get_rules<'py>(
         &mut self,
         type_info: Bound<'py, PyAny>,
     ) -> PyResult<Option<Bound<'py, PyTuple>>> {
-        // let rule = rule.downcast::<Rule>()?;
         let py = type_info.py();
         let key = TypeInfo::parse(type_info)?;
         let elements = match self.get(&key) {
             Some(e) => e,
             None => return Ok(None),
         };
+        // TODO: Need to check type Specificity.
         if key.qualifiers.is_empty() {
             Ok(Some(PyTuple::new_bound(py, elements)))
         } else {
             let mut qualified_rules: Vec<&Rule> = Vec::new();
             for e in elements {
                 let attrs = &e.output_type.attributes;
-                if true {}
                 let qualified = key.qualifiers.qualify(py, attrs)?;
                 if qualified {
                     qualified_rules.push(e);

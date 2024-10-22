@@ -5,7 +5,14 @@ use pyo3::PyObject;
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-#[pyclass(get_all, frozen, eq, hash, subclass, module = "composify.metadata.set")]
+#[pyclass(
+    get_all,
+    frozen,
+    eq,
+    hash,
+    subclass,
+    module = "composify.core.metadata"
+)]
 #[derive(Debug, Default)]
 pub struct MetadataSet {
     map: HashMap<isize, PyObject>,
@@ -124,7 +131,7 @@ impl MetadataSet {
     }
 }
 
-#[pyclass(module = "composify.metadata.set")]
+#[pyclass(module = "composify.core.metadata", eq)]
 #[derive(Debug, Default)]
 pub struct Qualifiers {
     qualifiers: Vec<Py<PyAny>>,
@@ -142,8 +149,8 @@ impl Qualifiers {
             qualifiers.push(p.unbind());
         }
         Ok(Qualifiers {
-            qualifiers: qualifiers,
-            hash: hasher.finish()
+            qualifiers,
+            hash: hasher.finish(),
         })
     }
 
@@ -195,7 +202,6 @@ impl Qualifiers {
     pub fn is_empty(&self) -> bool {
         self.qualifiers.is_empty()
     }
-
 }
 
 impl Hash for Qualifiers {
@@ -210,9 +216,16 @@ impl ToPyObject for Qualifiers {
     }
 }
 
-#[pyclass(module = "composify.metadata.set", frozen)]
-pub struct AttributeQualifier(pub Py<MetadataSet>);
+impl PartialEq for Qualifiers {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
+}
 
+impl Eq for Qualifiers {}
+
+#[pyclass(module = "composify.core.metadata", frozen)]
+pub struct AttributeQualifier(pub Py<MetadataSet>);
 
 #[pymethods]
 impl AttributeQualifier {

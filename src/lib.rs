@@ -2,20 +2,31 @@ use pyo3::prelude::*;
 
 mod metadata;
 mod registry;
-mod solutions;
 mod rules;
-mod type_info;
-mod solver;
+mod solutions;
 mod solve_parameters;
+mod solver;
+mod type_info;
 
 /// The core module for composify written in rust.
 #[pymodule]
 fn composify(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    rules(m)?;
-    registry(m)?;
-    metadata(m)?;
-    solutions(m)?;
+    core(m)?;
+    Ok(())
+}
+
+fn core(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let py = parent_module.py();
+    let m = PyModule::new_bound(py, "core")?;
+    rules(&m)?;
+    registry(&m)?;
+    metadata(&m)?;
+    solutions(&m)?;
+    solver(&m)?;
     m.add_class::<type_info::TypeInfo>()?;
+    py.import_bound("sys")?
+        .getattr("modules")?
+        .set_item("composify.core", m)?;
     Ok(())
 }
 
@@ -28,7 +39,7 @@ fn rules(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<rules::Rule>()?;
     py.import_bound("sys")?
         .getattr("modules")?
-        .set_item("composify.rules", m)?;
+        .set_item("composify.core.rules", m)?;
     Ok(())
 }
 
@@ -38,7 +49,7 @@ fn registry(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<registry::RuleRegistry>()?;
     py.import_bound("sys")?
         .getattr("modules")?
-        .set_item("composify.registry", m)?;
+        .set_item("composify.core.registry", m)?;
     Ok(())
 }
 
@@ -49,7 +60,7 @@ fn metadata(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<metadata::Qualifiers>()?;
     py.import_bound("sys")?
         .getattr("modules")?
-        .set_item("composify.metadata.set", m)?;
+        .set_item("composify.core.metadata", m)?;
     Ok(())
 }
 
@@ -57,13 +68,24 @@ fn solutions(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = parent_module.py();
     let m = PyModule::new_bound(py, "solutions")?;
     m.add_class::<solutions::SolutionArg>()?;
-    m.add_class::<solutions::SolutionArgs>()?;
+    m.add_class::<solutions::SolutionArgsCollection>()?;
     m.add_class::<solutions::Solution>()?;
     m.add_class::<solve_parameters::SolveCardinality>()?;
     m.add_class::<solve_parameters::SolveSpecificity>()?;
     m.add_class::<solve_parameters::SolveParameter>()?;
     py.import_bound("sys")?
         .getattr("modules")?
-        .set_item("composify.solutions", m)?;
+        .set_item("composify.core.solutions", m)?;
+    Ok(())
+}
+
+fn solver(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let py = parent_module.py();
+    let m = PyModule::new_bound(py, "solver")?;
+    m.add("SolvingError", py.get_type_bound::<solver::SolvingError>())?;
+    m.add_class::<solver::Solver>()?;
+    py.import_bound("sys")?
+        .getattr("modules")?
+        .set_item("composify.core.solver", m)?;
     Ok(())
 }

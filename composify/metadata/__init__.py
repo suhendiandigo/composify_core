@@ -1,9 +1,9 @@
 """Module for base metadata implementation."""
 
+from composify.core.metadata import MetadataSet
 from .attributes import BaseAttributeMetadata, collect_attributes
 from .base import BaseMetadata, collect_metadata
 from .qualifiers import BaseQualifierMetadata, collect_qualifiers
-from .set import MetadataSet
 
 __all__ = [
     "BaseMetadata",

@@ -3,7 +3,7 @@
 from functools import partial
 from typing import Any, TypeVar
 
-from .set import MetadataSet
+from composify.core.metadata import MetadataSet
 
 
 class BaseMetadata:

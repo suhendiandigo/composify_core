@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from enum import Enum, auto
 
 from composify.rules import Rule
@@ -30,7 +31,7 @@ class SolutionArg:
     def solution(self) -> Solution: ...
 
 
-class SolutionArgs:
+class SolutionArgsCollection(Sequence[SolutionArg]):
     pass
 
 class Solution:
@@ -38,4 +39,4 @@ class Solution:
     @property
     def rule(self) -> Rule: ...
     @property
-    def args(self) -> SolutionArgs: ...
+    def args(self) -> SolutionArgsCollection: ...

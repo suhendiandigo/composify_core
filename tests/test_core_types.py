@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from typing import Annotated
 
-from composify import TypeInfo
+from composify.core import TypeInfo
 from composify.metadata.attributes import AttributeSet, BaseAttributeMetadata
 from composify.metadata.qualifiers import BaseQualifierMetadata
-from composify.registry import RuleRegistry
+from composify.core.registry import RuleRegistry
 from composify.rules import Rule
-from composify.solutions import SolveCardinality, SolveSpecificity
+from composify.core.solutions import SolveCardinality, SolveSpecificity
 
 
 @dataclass(frozen=True)

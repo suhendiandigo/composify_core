@@ -1,16 +1,16 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyFunction, PyMapping, PyString};
 
-use std::fmt::Display;
 use std::hash::{DefaultHasher, Hash, Hasher};
+use std::slice::Iter;
 
 use crate::type_info::TypeInfo;
 
-#[pyclass(get_all, frozen, module = "composify.rules")]
+#[pyclass(get_all, frozen, eq, module = "composify.core.rules")]
 #[derive(Debug)]
 pub struct Dependency {
-    name: String,
-    typing: TypeInfo,
+    pub name: String,
+    pub typing: TypeInfo,
 }
 
 impl ToPyObject for Dependency {
@@ -43,7 +43,11 @@ impl Dependency {
     }
 
     fn __repr__(&self, py: Python) -> PyResult<String> {
-        Ok(format!("Dependency({}, type={})", &self.name, &self.typing.__repr__(py)?))
+        Ok(format!(
+            "Dependency({}, type={})",
+            &self.name,
+            &self.typing.__repr__(py)?
+        ))
     }
 
     fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {
@@ -54,7 +58,20 @@ impl Dependency {
     }
 }
 
-#[pyclass(module = "composify.rules")]
+impl Hash for Dependency {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.typing.hash(state);
+    }
+}
+
+impl PartialEq for Dependency {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.typing == other.typing
+    }
+}
+
+#[pyclass(module = "composify.core.rules")]
 pub struct DependenciesIter {
     inner: std::vec::IntoIter<Dependency>,
 }
@@ -70,7 +87,7 @@ impl DependenciesIter {
     }
 }
 
-#[pyclass(frozen, module = "composify.rules")]
+#[pyclass(frozen, eq, module = "composify.core.rules")]
 #[derive(Debug)]
 pub struct Dependencies {
     pub dependencies: Vec<Dependency>,
@@ -123,18 +140,37 @@ impl Dependencies {
 
     fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {
         let mut hasher = DefaultHasher::new();
-        for d in &slf.dependencies {
-            d.name.hash(&mut hasher);
-            d.typing.hash(&mut hasher);
-        }
+        slf.hash(&mut hasher);
         Ok(hasher.finish())
     }
 }
 
 impl Dependencies {
-    fn clone_ref(&self, py: Python<'_>) -> Self {
+    pub fn clone_ref(&self, py: Python<'_>) -> Self {
         Dependencies {
             dependencies: self.dependencies.iter().map(|d| d.clone_ref(py)).collect(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.dependencies.is_empty()
+    }
+
+    pub fn iter(&self) -> Iter<Dependency> {
+        self.dependencies.iter()
+    }
+}
+
+impl PartialEq for Dependencies {
+    fn eq(&self, other: &Self) -> bool {
+        self.dependencies == other.dependencies
+    }
+}
+
+impl Hash for Dependencies {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for dependency in &self.dependencies {
+            dependency.hash(state);
         }
     }
 }
@@ -147,7 +183,7 @@ impl ToPyObject for Dependencies {
     }
 }
 
-#[pyclass(get_all, frozen, module = "composify.rules")]
+#[pyclass(get_all, frozen, eq, module = "composify.core.rules")]
 pub struct Rule {
     pub function: Py<PyFunction>,
     pub canonical_name: String,
@@ -228,5 +264,31 @@ impl ToPyObject for Rule {
     fn to_object(&self, py: Python<'_>) -> pyo3::Py<PyAny> {
         let r = self.clone_ref(py);
         r.into_py(py)
+    }
+}
+
+impl PartialEq for Rule {
+    fn eq(&self, other: &Self) -> bool {
+        self.function.is(&other.function)
+            && self.canonical_name == other.canonical_name
+            && self.output_type == other.output_type
+            && self.dependencies == other.dependencies
+            && self.priority == other.priority
+            && self.is_async == other.is_async
+            && self.is_optional == other.is_optional
+    }
+}
+
+impl PartialOrd for Rule {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for Rule {}
+
+impl Ord for Rule {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.priority.cmp(&other.priority)
     }
 }
