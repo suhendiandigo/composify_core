@@ -79,7 +79,7 @@ fn permutate_candidates(
     let mut iter = candidates.into_iter();
     if let Some(c) = iter.next() {
         for s in c.solutions {
-            next_iteration.push(SolutionArgsCollection(vec![SolutionArg {
+            next_iteration.push(SolutionArgsCollection::new(vec![SolutionArg {
                 name: c.name.clone(),
                 solution: s,
             }]));

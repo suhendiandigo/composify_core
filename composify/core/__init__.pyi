@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import Any
 
-from composify.metadata import MetadataSet
+from composify.metadata import MetadataSet, Qualifiers
 from composify.solutions import SolveParameter
 
 class TypeInfo:

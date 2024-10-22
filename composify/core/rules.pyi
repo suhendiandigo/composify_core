@@ -1,10 +1,10 @@
 from collections.abc import Callable, Iterator, Mapping
 
-from composify import TypeInfo
+from composify.core import TypeInfo
 
 class Dependency:
     name: str
-    typing: type
+    typing: TypeInfo
 
     def __hash__(self): ...
 

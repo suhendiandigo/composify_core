@@ -191,7 +191,7 @@ impl ToPyObject for Dependencies {
     }
 }
 
-#[pyclass(get_all, frozen, eq, module = "composify.core.rules")]
+#[pyclass(get_all, frozen, eq, hash, module = "composify.core.rules")]
 pub struct Rule {
     pub function: Py<PyFunction>,
     pub canonical_name: String,
@@ -205,10 +205,11 @@ pub struct Rule {
 impl Rule {
     #[new]
     pub fn new(
+        py: Python,
         function: Bound<'_, PyFunction>,
         canonical_name: String,
         output_type: Bound<'_, PyAny>,
-        dependencies: Bound<'_, PyMapping>,
+        dependencies: Bound<'_, PyAny>,
         priority: i32,
         is_async: bool,
     ) -> PyResult<Self> {
@@ -216,7 +217,14 @@ impl Rule {
             function: function.into(),
             canonical_name,
             output_type: TypeInfo::parse(output_type)?,
-            dependencies: Dependencies::new(dependencies)?,
+            dependencies: if let Ok(dependencies) = dependencies.downcast::<PyMapping>() {
+                Dependencies::new(dependencies.clone())?
+            } else {
+                dependencies
+                    .downcast_into::<Dependencies>()?
+                    .get()
+                    .clone_ref(py)
+            },
             priority,
             is_async,
         })
@@ -224,21 +232,6 @@ impl Rule {
 
     pub fn __repr__(&self) -> PyResult<String> {
         Ok(self.to_string())
-    }
-
-    pub fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {
-        let mut hasher = DefaultHasher::new();
-        let py = slf.py();
-        hasher.write_isize(slf.function.bind(py).hash()?);
-        slf.canonical_name.hash(&mut hasher);
-        slf.priority.hash(&mut hasher);
-        slf.is_async.hash(&mut hasher);
-        slf.output_type.hash(&mut hasher);
-        for d in &slf.dependencies.dependencies {
-            d.name.hash(&mut hasher);
-            d.typing.hash(&mut hasher);
-        }
-        Ok(hasher.finish())
     }
 }
 
@@ -279,8 +272,7 @@ impl ToPyObject for Rule {
 
 impl PartialEq for Rule {
     fn eq(&self, other: &Self) -> bool {
-        self.function.is(&other.function)
-            && self.canonical_name == other.canonical_name
+        self.canonical_name == other.canonical_name
             && self.output_type == other.output_type
             && self.dependencies == other.dependencies
             && self.priority == other.priority
@@ -288,16 +280,24 @@ impl PartialEq for Rule {
     }
 }
 
+impl Eq for Rule {}
+
 impl PartialOrd for Rule {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Eq for Rule {}
-
 impl Ord for Rule {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.priority.cmp(&other.priority)
+    }
+}
+
+impl Hash for Rule {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.output_type.hash(state);
+        self.dependencies.hash(state);
+        self.is_async.hash(state);
     }
 }

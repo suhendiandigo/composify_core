@@ -106,3 +106,15 @@ class NotExclusiveError(TracedSolvingError):
             traces,
             f"Found multiple solutions: {', '.join(str(solution) for solution in solutions)}",
         )
+
+
+class BuilderError(Exception):
+    """Base class for all Builder related errors."""
+
+    pass
+
+
+class AsyncSolutionError(BuilderError):
+    """Raised when trying to build async solution using sync Builder."""
+
+    pass

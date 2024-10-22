@@ -89,7 +89,7 @@ pydocstyle = { convention = 'google' }
 
 [tool.ruff.lint.per-file-ignores]
 'tests/*' = ['D', 'B', 'C4']
-'composify/__init__.py' = ['F821']
+'composify/__init__.py' = ['F821', "F405"]
 'composify/**/*.pyi' = ['F821']
 
 [tool.ruff.format]

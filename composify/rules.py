@@ -17,7 +17,7 @@ Example:
 import asyncio
 import inspect
 from collections.abc import Callable, Iterable, Mapping
-from functools import partial
+from functools import partial, wraps
 from types import FrameType, ModuleType
 from typing import Annotated, Any, ParamSpec, TypeVar, get_type_hints
 
@@ -29,7 +29,7 @@ from composify.errors import (
 )
 from composify.qualifiers import Qualifier
 
-__all__ = ("rule", "as_rule")
+__all__ = ("rule", "as_rule", "collect_rules")
 
 
 def ensure_type_annotation(
@@ -189,6 +189,47 @@ def rule(
     )
 
 
+def static_rule(
+    name: str,
+    static_value: Any,
+    output_type: Any | None = None,
+    priority: int = 0,
+) -> Rule:
+    """Create a rule from a static value. This rule contains no dependency and returns the `static_value`."""
+    return Rule(
+        lambda: static_value,
+        canonical_name=name,
+        output_type=output_type or static_value.__class__,
+        dependencies={},
+        priority=priority,
+        is_async=False,
+    )
+
+
+def wraps_rule(wrapped: Any, **kwargs):
+    """Calls functools.wraps and also attach the associated rule.
+    Kwargs are passed to the underlying functools.wraps.
+    """
+    wrapped_rule = as_rule(wrapped)
+
+    def decorator(f):
+        f = wraps(wrapped, **kwargs)(f)
+        attach_rule(
+            f,
+            Rule(
+                f,
+                canonical_name=wrapped_rule.canonical_name,
+                output_type=wrapped_rule.output_type,
+                dependencies=wrapped_rule.dependencies,
+                priority=wrapped_rule.priority,
+                is_async=asyncio.iscoroutinefunction(f),
+            ),
+        )
+        return f
+
+    return decorator
+
+
 def as_rule(f: Any) -> Rule:
     """Returns the ConstructRule associated with the object.
 
@@ -222,6 +263,14 @@ def _extract_rules(rule: Any):
 def collect_rules(
     *namespaces: ModuleType | Mapping[str, Any],
 ) -> Iterable[Rule]:
+    """Collect all rules in a namespace.
+
+    Example:
+        @rule
+        def test_rule() -> str: ...
+
+        rules = collect_rules()
+    """
     if not namespaces:
         currentframe = inspect.currentframe()
         assert isinstance(currentframe, FrameType)
