@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyFunction, PyMapping, PyString};
+use pyo3::types::{PyMapping, PyString};
 
 use std::fmt::{Display, Write};
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -193,7 +193,7 @@ impl ToPyObject for Dependencies {
 
 #[pyclass(get_all, frozen, eq, hash, module = "composify.core.rules")]
 pub struct Rule {
-    pub function: Py<PyFunction>,
+    pub function: Py<PyAny>,
     pub canonical_name: String,
     pub output_type: TypeInfo,
     pub dependencies: Dependencies,
@@ -206,7 +206,7 @@ impl Rule {
     #[new]
     pub fn new(
         py: Python,
-        function: Bound<'_, PyFunction>,
+        function: Bound<'_, PyAny>,
         canonical_name: String,
         output_type: Bound<'_, PyAny>,
         dependencies: Bound<'_, PyAny>,

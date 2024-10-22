@@ -5,7 +5,7 @@ use std::{
 
 use pyo3::{
     prelude::*,
-    types::{PyFunction, PyMapping, PyString, PyTuple},
+    types::{PyMapping, PyString, PyTuple},
 };
 
 use crate::{rules::Rule, type_info::TypeInfo};
@@ -204,7 +204,7 @@ impl Solution {
     }
 
     #[getter]
-    pub fn function(slf: PyRef<Self>) -> Bound<PyFunction> {
+    pub fn function(slf: PyRef<Self>) -> Bound<PyAny> {
         slf.rule.function.clone_ref(slf.py()).into_bound(slf.py())
     }
 

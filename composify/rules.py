@@ -95,9 +95,8 @@ def _rule_decorator(
     *,
     priority: int,
     name: str | None = None,
-    dependency_qualifiers: Iterable[Qualifier] | None = None,
+    metadata: Iterable[Qualifier] | None = None,
     return_type: type | None = None,
-    is_optional: bool | None = None,
 ) -> Any:
     if inspect.isclass(decorated):
         func, func_params = _get_init_func(decorated)
@@ -123,7 +122,7 @@ def _rule_decorator(
                 name=f"{func_id} parameter {parameter}",
                 raise_type=MissingParameterTypeAnnotation,
             ),
-            dependency_qualifiers,
+            metadata,
         )
         for parameter in func_params
     }
@@ -147,9 +146,8 @@ def rule(
     *,
     priority: int = 0,
     name: str | None = None,
-    dependency_qualifiers: Iterable[Qualifier] | None = None,
+    metadata: Iterable[Any] | None = None,
     return_type: type | None = None,
-    is_optional: bool | None = None,
 ):
     """Marks a function or a class as a rule. Allowing collection via collect_rules().
 
@@ -157,7 +155,7 @@ def rule(
         f (RuleFunctionType | None, optional): The function or class to mark as a rule. Defaults to None.
         name (str | None, optional): Override the name of the rule if exists.
         priority (int, optional): The resolution priority. Higher value equals higher priority. Defaults to 0.
-        dependency_qualifiers (Iterable[BaseQualifierMetadata] | None, optional): Add qualifiers to all dependencies. Defaults to None.
+        metadata (Iterable[Any] | None, optional): Add metadata to all dependencies. Defaults to None.
         return_type (type | None, optional): Override the return type of the rule.
         is_optional (bool | None, optional): Override the optionality of the rule.
 
@@ -175,17 +173,15 @@ def rule(
             _rule_decorator,
             priority=priority,
             name=name,
-            dependency_qualifiers=dependency_qualifiers,
+            metadata=metadata,
             return_type=return_type,
-            is_optional=is_optional,
         )
     return _rule_decorator(
         f,
         priority=priority,
         name=name,
-        dependency_qualifiers=dependency_qualifiers,
+        metadata=metadata,
         return_type=return_type,
-        is_optional=is_optional,
     )
 
 
