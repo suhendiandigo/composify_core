@@ -139,14 +139,14 @@ impl Display for Solution {
             write!(
                 f,
                 "Solution({}, rule={})",
-                self.rule.output_type.canonical_name(),
+                self.rule.output_type.to_type_string(),
                 self.rule.canonical_name
             )
         } else {
             write!(
                 f,
                 "Solution({}, rule={}, arguments={})",
-                self.rule.output_type.canonical_name(),
+                self.rule.output_type.to_type_string(),
                 self.rule.canonical_name,
                 self.args
             )

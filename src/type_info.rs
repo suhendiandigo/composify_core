@@ -4,7 +4,7 @@ use pyo3::{intern, types::PySequence};
 use std::fmt::Display;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use crate::metadata::{MetadataSet, Qualifiers};
+use crate::metadata::{MetadataSet, Qualifiers, QUALIFY_METHOD_NAME};
 use crate::solve_parameters::{SolveCardinality, SolveParameter, SolveSpecificity};
 
 fn parse_metadata(
@@ -15,7 +15,7 @@ fn parse_metadata(
     let mut qualifiers = Vec::new();
     let mut solve_parameter = SolveParameter::default();
     for py_element in metadata.iter()?.flatten() {
-        if py_element.hasattr(intern!(py, "qualify"))? {
+        if py_element.hasattr(intern!(py, QUALIFY_METHOD_NAME))? {
             qualifiers.push(py_element);
         } else if let Ok(c) = py_element.downcast::<SolveCardinality>() {
             let c = c.get();
@@ -140,8 +140,6 @@ impl TypeInfo {
 
     pub fn to_type_string(&self) -> String {
         let mut annotations: Vec<String> = Vec::new();
-        annotations.push(self.solve_parameter.specificity.to_string());
-        annotations.push(self.solve_parameter.cardinality.to_string());
         if !self.attributes.is_empty() {
             for attr in self.attributes.iter() {
                 annotations.push(attr.to_string());
@@ -152,7 +150,12 @@ impl TypeInfo {
                 annotations.push(qualifier.to_string());
             }
         }
-        format!("{}<{}>", self.canonical_name(), annotations.join(", "),)
+        if annotations.is_empty() {
+            format!("{}({}{})", self.canonical_name(), self.solve_parameter.specificity.symbol(), self.solve_parameter.cardinality.symbol())
+
+        } else {
+            format!("{}({}{}, {})", self.canonical_name(), self.solve_parameter.specificity.symbol(), self.solve_parameter.cardinality.symbol(), annotations.join(", "))
+        }
     }
 }
 

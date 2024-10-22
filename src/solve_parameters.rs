@@ -13,6 +13,31 @@ pub enum SolveCardinality {
     Exclusive,
 }
 
+#[pymethods]
+impl SolveCardinality {
+    pub fn __repr__(&self) -> &str {
+        match self {
+            Self::Exhaustive => "Exhaustive",
+            Self::Single => "Single",
+            Self::Exclusive => "Exclusive",
+        }
+    }
+
+    pub fn __str__(&self) -> char {
+        self.symbol()
+    }
+}
+
+impl SolveCardinality {
+    pub fn symbol(&self) -> char {
+        match self {
+            Self::Exhaustive => '*',
+            Self::Single => '1',
+            Self::Exclusive => 'x',
+        }
+    }
+}
+
 impl Default for SolveCardinality {
     fn default() -> Self {
         Self::Exclusive
@@ -38,6 +63,31 @@ pub enum SolveSpecificity {
     AllowSubclass,
     /// Solve allowing superclass.
     AllowSuperclass,
+}
+
+#[pymethods]
+impl SolveSpecificity {
+    pub fn __repr__(&self) -> &str {
+        match self {
+            Self::Exact => "Exact",
+            Self::AllowSubclass => "AllowSubclass",
+            Self::AllowSuperclass => "AllowSuperclass",
+        }
+    }
+
+    pub fn __str__(&self) -> char {
+        self.symbol()
+    }
+}
+
+impl SolveSpecificity {
+    pub fn symbol(&self) -> char {
+        match self {
+            Self::Exact => '=',
+            Self::AllowSubclass => '+',
+            Self::AllowSuperclass => '-',
+        }
+    }
 }
 
 impl Default for SolveSpecificity {

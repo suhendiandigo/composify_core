@@ -2,15 +2,14 @@ from dataclasses import dataclass
 from typing import Annotated
 
 from composify.core import TypeInfo
-from composify.metadata.attributes import AttributeSet, BaseAttributeMetadata
-from composify.metadata.qualifiers import BaseQualifierMetadata
+from composify.core.metadata import MetadataSet
 from composify.core.registry import RuleRegistry
 from composify.rules import Rule
 from composify.core.solutions import SolveCardinality, SolveSpecificity
 
 
 @dataclass(frozen=True)
-class NameAttr(BaseAttributeMetadata):
+class NameAttr:
     name: str
 
 
@@ -19,10 +18,10 @@ def example_fn():
 
 
 @dataclass(frozen=True)
-class NameQualifier(BaseQualifierMetadata):
+class NameQualifier:
     name: str
 
-    def qualify(self, attributes: AttributeSet) -> bool:
+    def qualify(self, attributes: MetadataSet) -> bool:
         if attr := attributes.get(NameAttr):
             return attr.name == self.name
         return False
@@ -45,8 +44,6 @@ def test_type_info_qualifier():
 def test_solve_parameter():
     stored = TypeInfo.parse(Annotated[str, NameAttr("test2")])
     to_solve = TypeInfo.parse(Annotated[str, NameQualifier("test2"), SolveCardinality.Exhaustive, SolveSpecificity.AllowSuperclass])
-    print(stored)
-    print(to_solve)
     assert to_solve.qualifiers.qualify(stored.attributes)
     assert to_solve.solve_parameter.cardinality == SolveCardinality.Exhaustive
     assert to_solve.solve_parameter.specificity == SolveSpecificity.AllowSuperclass

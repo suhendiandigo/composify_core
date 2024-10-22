@@ -24,17 +24,14 @@ class MissingParameterTypeAnnotation(InvalidTypeAnnotation):
 Trace: TypeAlias = tuple[str, TypeInfo]
 Traces: TypeAlias = Sequence[Trace]
 
-def _format_type_info(type_info: TypeInfo) -> str:
-    return f"{type_info.type_module}.{type_info.type_name}"
-
 def _format_trace(trace: Trace) -> str:
     return (
-        f"({trace[0]}: {_format_type_info(trace[1])})"
+        f"({trace[0]}: {trace[1]})"
     )
 
 
 def _format_traces(traces: Traces) -> str:
-    steps = [_format_type_info(traces[0][1]), *(_format_trace(trace) for trace in traces[1:])]
+    steps = [str(traces[0][1]), *(_format_trace(trace) for trace in traces[1:])]
     return " -> ".join(steps)
 
 

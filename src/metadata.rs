@@ -148,9 +148,11 @@ pub struct Qualifier {
     inner_self: Option<PyObject>,
 }
 
+pub const QUALIFY_METHOD_NAME: &str = "qualify";
+
 impl Qualifier {
     pub fn new(qualifier: Bound<PyAny>) -> Self {
-        if let Ok(func) = qualifier.getattr(intern!(qualifier.py(), "qualify")) {
+        if let Ok(func) = qualifier.getattr(intern!(qualifier.py(), QUALIFY_METHOD_NAME)) {
             Self {
                 inner: func.unbind(),
                 inner_self: Some(qualifier.unbind()),

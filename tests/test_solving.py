@@ -84,5 +84,4 @@ def test_not_exclusive():
 
     with pytest.raises(SolveFailureError) as exc:
         solver.solve_for(Annotated[A, SolveCardinality.Exclusive])
-    print(exc.value)
     assert exc.value.contains(NotExclusiveError)

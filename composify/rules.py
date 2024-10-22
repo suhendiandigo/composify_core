@@ -29,8 +29,8 @@ from typing import (
 )
 
 from composify.errors import InvalidTypeAnnotation, MissingParameterTypeAnnotation, MissingReturnTypeAnnotation
-from composify.metadata.qualifiers import BaseQualifierMetadata
 from composify.core.rules import Rule
+from composify.qualifiers import Qualifier
 
 __all__ = ("rule", "as_rule")
 
@@ -60,7 +60,7 @@ class ConstructRuleSet(tuple[Rule, ...]):
 
 
 def _add_qualifiers(
-    type_: Any, qualifiers: Iterable[BaseQualifierMetadata] | None
+    type_: Any, qualifiers: Iterable[Qualifier] | None
 ) -> Any:
     if qualifiers is not None:
         for qualifier in qualifiers:
@@ -98,7 +98,7 @@ def _rule_decorator(
     *,
     priority: int,
     name: str | None = None,
-    dependency_qualifiers: Iterable[BaseQualifierMetadata] | None = None,
+    dependency_qualifiers: Iterable[Qualifier] | None = None,
     return_type: type | None = None,
     is_optional: bool | None = None,
 ) -> Any:
@@ -153,7 +153,7 @@ def rule(
     *,
     priority: int = 0,
     name: str | None = None,
-    dependency_qualifiers: Iterable[BaseQualifierMetadata] | None = None,
+    dependency_qualifiers: Iterable[Qualifier] | None = None,
     return_type: type | None = None,
     is_optional: bool | None = None,
 ):
