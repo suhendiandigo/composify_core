@@ -77,7 +77,8 @@ impl RuleRegistry {
             let mut qualified_rules: Vec<&Rule> = Vec::new();
             for e in elements {
                 let attrs = &e.output_type.attributes;
-                let qualified = key.qualifiers.qualify(py, attrs)?;
+                let qualified =
+                    key.attributes.issubset(attrs) && key.qualifiers.qualify(py, attrs)?;
                 if qualified {
                     qualified_rules.push(e);
                 }

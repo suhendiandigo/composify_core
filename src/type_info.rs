@@ -1,9 +1,10 @@
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::{intern, types::PySequence};
+use std::fmt::Display;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use crate::metadata::{AttributeQualifier, MetadataSet, Qualifiers};
+use crate::metadata::{MetadataSet, Qualifiers};
 use crate::solve_parameters::{SolveCardinality, SolveParameter, SolveSpecificity};
 
 fn parse_metadata(
@@ -14,32 +15,23 @@ fn parse_metadata(
     let mut qualifiers = Vec::new();
     let mut solve_parameter = SolveParameter::default();
     for py_element in metadata.iter()?.flatten() {
-        match py_element.getattr(intern!(py, "qualify")) {
-            Ok(f) => {
-                qualifiers.push(f);
-            }
-            Err(..) => {
-                if let Ok(c) = py_element.downcast::<SolveCardinality>() {
-                    let c = c.get();
-                    solve_parameter.cardinality = c.clone();
-                } else if let Ok(s) = py_element.downcast::<SolveSpecificity>() {
-                    let s = s.get();
-                    solve_parameter.specificity = s.clone();
-                } else {
-                    attributes.push(py_element);
-                }
-            }
+        if py_element.hasattr(intern!(py, "qualify"))? {
+            qualifiers.push(py_element);
+        } else if let Ok(c) = py_element.downcast::<SolveCardinality>() {
+            let c = c.get();
+            solve_parameter.cardinality = c.clone();
+        } else if let Ok(s) = py_element.downcast::<SolveSpecificity>() {
+            let s = s.get();
+            solve_parameter.specificity = s.clone();
+        } else {
+            attributes.push(py_element);
         }
     }
-    let metadata = MetadataSet::new(attributes)?;
-    if !metadata.is_empty() {
-        qualifiers.push(
-            AttributeQualifier(Py::new(py, metadata.clone_ref(py))?)
-                .to_object(py)
-                .into_bound(py),
-        );
-    }
-    Ok((metadata, Qualifiers::__new__(qualifiers)?, solve_parameter))
+    Ok((
+        MetadataSet::new(attributes)?,
+        Qualifiers::__new__(qualifiers)?,
+        solve_parameter,
+    ))
 }
 
 #[pyclass(get_all, frozen, module = "composify")]
@@ -109,15 +101,12 @@ impl TypeInfo {
         TypeInfo::__new__(t, metadata)
     }
 
-    pub fn __repr__(&self, py: Python) -> PyResult<String> {
-        Ok(format!(
-            "TypeInfo({}.{}, attrs={}, qualifiers={}, solve={})",
-            self.type_module,
-            self.type_name,
-            self.attributes.__repr__(py)?,
-            self.qualifiers.__repr__(py)?,
-            self.solve_parameter,
-        ))
+    pub fn __repr__(&self) -> PyResult<String> {
+        Ok(self.to_string())
+    }
+
+    pub fn __str__(&self) -> PyResult<String> {
+        Ok(self.to_type_string())
     }
 
     fn __hash__(&self) -> PyResult<u64> {
@@ -138,6 +127,42 @@ impl TypeInfo {
             qualifiers: self.qualifiers.clone_ref(py),
             solve_parameter: self.solve_parameter.clone(),
         }
+    }
+
+    #[inline(always)]
+    pub fn canonical_name(&self) -> String {
+        if self.type_module == "builtins" {
+            self.type_name.clone()
+        } else {
+            format!("{}.{}", self.type_module, self.type_name)
+        }
+    }
+
+    pub fn to_type_string(&self) -> String {
+        let mut annotations: Vec<String> = Vec::new();
+        annotations.push(self.solve_parameter.specificity.to_string());
+        annotations.push(self.solve_parameter.cardinality.to_string());
+        if !self.attributes.is_empty() {
+            for attr in self.attributes.iter() {
+                annotations.push(attr.to_string());
+            }
+        }
+        if !self.qualifiers.is_empty() {
+            for qualifier in self.qualifiers.iter() {
+                annotations.push(qualifier.to_string());
+            }
+        }
+        format!("{}<{}>", self.canonical_name(), annotations.join(", "),)
+    }
+}
+
+impl Display for TypeInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "TypeInfo({}, attrs={}, qualifiers={}, solve={})",
+            self.inner_type, self.attributes, self.qualifiers, self.solve_parameter,
+        )
     }
 }
 

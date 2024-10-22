@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 
+mod errors;
 mod metadata;
 mod registry;
 mod rules;
@@ -57,7 +58,6 @@ fn metadata(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = parent_module.py();
     let m = PyModule::new_bound(py, "set")?;
     m.add_class::<metadata::MetadataSet>()?;
-    m.add_class::<metadata::Qualifiers>()?;
     py.import_bound("sys")?
         .getattr("modules")?
         .set_item("composify.core.metadata", m)?;

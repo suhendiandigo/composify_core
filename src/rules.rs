@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyFunction, PyMapping, PyString};
 
+use std::fmt::{Display, Write};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::slice::Iter;
 
@@ -42,12 +43,8 @@ impl Dependency {
         })
     }
 
-    fn __repr__(&self, py: Python) -> PyResult<String> {
-        Ok(format!(
-            "Dependency({}, type={})",
-            &self.name,
-            &self.typing.__repr__(py)?
-        ))
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(self.to_string())
     }
 
     fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {
@@ -55,6 +52,12 @@ impl Dependency {
         slf.name.hash(&mut hasher);
         slf.typing.hash(&mut hasher);
         Ok(hasher.finish())
+    }
+}
+
+impl Display for Dependency {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Dependency({}, type={})", &self.name, &self.typing,)
     }
 }
 
@@ -118,24 +121,8 @@ impl Dependencies {
         Py::new(slf.py(), iter)
     }
 
-    fn __repr__(&self, py: Python) -> PyResult<String> {
-        let mut repr = String::new();
-        repr.push('{');
-
-        let mut first = true;
-
-        for dependency in self.dependencies.iter() {
-            if !first {
-                repr.push_str(", ");
-            }
-            repr.push_str(&dependency.name);
-            repr.push('=');
-            repr.push_str(&dependency.typing.__repr__(py)?);
-            first = false;
-        }
-
-        repr.push('}');
-        Ok(repr)
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(self.to_string())
     }
 
     fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {
@@ -158,6 +145,27 @@ impl Dependencies {
 
     pub fn iter(&self) -> Iter<Dependency> {
         self.dependencies.iter()
+    }
+}
+
+impl Display for Dependencies {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_char('{')?;
+
+        let mut first = true;
+
+        for dependency in self.dependencies.iter() {
+            if !first {
+                f.write_str(", ")?;
+            }
+            f.write_str(&dependency.name)?;
+            f.write_char('=')?;
+            f.write_str(&dependency.typing.to_string())?;
+            first = false;
+        }
+
+        f.write_char('}')?;
+        Ok(())
     }
 }
 
@@ -191,20 +199,18 @@ pub struct Rule {
     pub dependencies: Dependencies,
     pub priority: i32,
     pub is_async: bool,
-    pub is_optional: bool,
 }
 
 #[pymethods]
 impl Rule {
     #[new]
-    fn new(
+    pub fn new(
         function: Bound<'_, PyFunction>,
         canonical_name: String,
         output_type: Bound<'_, PyAny>,
         dependencies: Bound<'_, PyMapping>,
         priority: i32,
         is_async: bool,
-        is_optional: bool,
     ) -> PyResult<Self> {
         Ok(Self {
             function: function.into(),
@@ -213,30 +219,20 @@ impl Rule {
             dependencies: Dependencies::new(dependencies)?,
             priority,
             is_async,
-            is_optional,
         })
     }
 
-    fn __repr__(&self, py: Python) -> PyResult<String> {
-        Ok(format!(
-            "Rule({}, {}, out={}, priority={}, is_async={}, is_optional={})",
-            self.canonical_name,
-            self.function,
-            self.output_type.__repr__(py)?,
-            self.priority,
-            self.is_async,
-            self.is_optional
-        ))
+    pub fn __repr__(&self) -> PyResult<String> {
+        Ok(self.to_string())
     }
 
-    fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {
+    pub fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {
         let mut hasher = DefaultHasher::new();
         let py = slf.py();
         hasher.write_isize(slf.function.bind(py).hash()?);
         slf.canonical_name.hash(&mut hasher);
         slf.priority.hash(&mut hasher);
         slf.is_async.hash(&mut hasher);
-        slf.is_optional.hash(&mut hasher);
         slf.output_type.hash(&mut hasher);
         for d in &slf.dependencies.dependencies {
             d.name.hash(&mut hasher);
@@ -255,8 +251,22 @@ impl Rule {
             dependencies: self.dependencies.clone_ref(py),
             priority: self.priority,
             is_async: self.is_async,
-            is_optional: self.is_optional,
         }
+    }
+}
+
+impl Display for Rule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Rule({}, {}, out={}, priority={}, is_async={}, dependencies={})",
+            self.canonical_name,
+            self.function,
+            self.output_type,
+            self.priority,
+            self.is_async,
+            self.dependencies,
+        )
     }
 }
 
@@ -275,7 +285,6 @@ impl PartialEq for Rule {
             && self.dependencies == other.dependencies
             && self.priority == other.priority
             && self.is_async == other.is_async
-            && self.is_optional == other.is_optional
     }
 }
 

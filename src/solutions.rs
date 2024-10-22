@@ -1,3 +1,5 @@
+use std::fmt::{Display, Write};
+
 use pyo3::{
     prelude::*,
     types::{PyFunction, PyTuple},
@@ -9,6 +11,19 @@ use crate::rules::Rule;
 pub struct SolutionArg {
     pub name: String,
     pub solution: Solution,
+}
+
+#[pymethods]
+impl SolutionArg {
+    pub fn __repr__(&self) -> PyResult<String> {
+        Ok(self.to_string())
+    }
+}
+
+impl Display for SolutionArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SolutionArg({}: {})", self.name, self.solution)
+    }
 }
 
 impl SolutionArg {
@@ -45,13 +60,38 @@ impl SolutionArgsCollection {
     pub fn add(&mut self, arg: SolutionArg) {
         self.0.push(arg);
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 #[pymethods]
 impl SolutionArgsCollection {
-    // pub fn __iter__(&self, py: Python) -> PyResult<Py<PyIterator>> {
-    //     Ok(PyTuple::new_bound(py, self.0))
-    // }
+    pub fn __repr__(&self) -> PyResult<String> {
+        Ok(self.to_string())
+    }
+}
+
+impl Display for SolutionArgsCollection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_char('{')?;
+
+        let mut first = true;
+
+        for solution_arg in self.0.iter() {
+            if !first {
+                f.write_str(", ")?;
+            }
+            f.write_str(&solution_arg.name)?;
+            f.write_str(": ")?;
+            solution_arg.solution.fmt(f)?;
+            first = false;
+        }
+
+        f.write_char('}')?;
+        Ok(())
+    }
 }
 
 #[pyclass(get_all, frozen, module = "composify.core.solutions")]
@@ -81,9 +121,36 @@ impl Solution {
         self.rule.is_async
     }
 
-    #[getter]
-    pub fn is_optional(&self) -> bool {
-        self.rule.is_optional
+    pub fn __repr__(&self) -> PyResult<String> {
+        Ok(format!(
+            "Solution(rule={}, arguments={})",
+            self.rule, self.args
+        ))
+    }
+
+    pub fn __str__(&self) -> PyResult<String> {
+        Ok(self.to_string())
+    }
+}
+
+impl Display for Solution {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.args.is_empty() {
+            write!(
+                f,
+                "Solution({}, rule={})",
+                self.rule.output_type.canonical_name(),
+                self.rule.canonical_name
+            )
+        } else {
+            write!(
+                f,
+                "Solution({}, rule={}, arguments={})",
+                self.rule.output_type.canonical_name(),
+                self.rule.canonical_name,
+                self.args
+            )
+        }
     }
 }
 

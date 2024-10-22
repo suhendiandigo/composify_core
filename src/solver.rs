@@ -1,15 +1,15 @@
 use std::{
     cell::{Ref, RefCell},
-    collections::{BinaryHeap, HashMap},
+    collections::HashMap,
     rc::Rc,
     sync::{Arc, RwLock},
 };
 
-use pyo3::{create_exception, exceptions::PyException, prelude::*};
+use pyo3::{create_exception, exceptions::PyException, prelude::*, types::PyTuple};
 
 use crate::{
+    errors,
     registry::RuleRegistry,
-    rules::Rule,
     solutions::{Solution, SolutionArg, SolutionArgsCollection},
     solve_parameters::SolveCardinality,
     type_info::TypeInfo,
@@ -48,9 +48,9 @@ pub struct SolutionsMemo(Arc<RwLock<HashMap<TypeInfo, Vec<Solution>>>>);
 impl SolutionsMemo {
     pub fn read_memo(&self, py: Python, t: &TypeInfo) -> Option<Vec<Solution>> {
         match self.0.read() {
-            Ok(map) => {
-                map.get(t).map(|memo| memo.iter().map(|s| s.clone_ref(py)).collect())
-            }
+            Ok(map) => map
+                .get(t)
+                .map(|memo| memo.iter().map(|s| s.clone_ref(py)).collect()),
             Err(_) => None,
         }
     }
@@ -62,10 +62,10 @@ impl SolutionsMemo {
     }
 }
 
-pub enum _SolvingError {
+pub enum SolvingErrorReason {
     CyclicDependency,
     NoSolution,
-    NotExclusive,
+    NotExclusive(Vec<Solution>),
 }
 
 create_exception!(composify.core.solver, SolvingError, PyException);
@@ -73,7 +73,7 @@ create_exception!(composify.core.solver, SolvingError, PyException);
 fn permutate_candidates(
     py: Python,
     candidates: Vec<SolutionArgCandidate>,
-) -> Result<Vec<SolutionArgsCollection>, _SolvingError> {
+) -> Result<Vec<SolutionArgsCollection>, SolvingErrorReason> {
     let mut curr_iteration: Vec<SolutionArgsCollection>;
     let mut next_iteration: Vec<SolutionArgsCollection> = Vec::new();
     let mut iter = candidates.into_iter();
@@ -85,7 +85,7 @@ fn permutate_candidates(
             }]));
         }
     } else {
-        return Err(_SolvingError::NoSolution);
+        return Err(SolvingErrorReason::NoSolution);
     }
 
     for c in iter {
@@ -111,7 +111,7 @@ pub struct _Solver<'a> {
     solver: &'a Solver,
     py: Python<'a>,
     execution_stack: Rc<RefCell<ExecutionStack<'a>>>,
-    errors: RefCell<Vec<(ExecutionStack<'a>, _SolvingError)>>,
+    errors: RefCell<Vec<(ExecutionStack<'a>, SolvingErrorReason)>>,
 }
 
 pub struct SolutionArgCandidate {
@@ -129,31 +129,10 @@ impl<'a> _Solver<'a> {
         }
     }
 
-    fn push_error(&self, error: _SolvingError) {
+    fn push_error(&self, error: SolvingErrorReason) {
         self.errors
             .borrow_mut()
             .push((clone_stack(self.execution_stack.borrow()), error));
-    }
-
-    fn iterate_rule(
-        &'a self,
-        rules: &'a BinaryHeap<Rule>,
-        cardinality: &SolveCardinality,
-    ) -> Option<Vec<&'a Rule>> {
-        Some(match cardinality {
-            SolveCardinality::Exhaustive => rules.iter().collect(),
-            SolveCardinality::Single => match rules.iter().next() {
-                Some(r) => vec![r],
-                None => Vec::new(),
-            },
-            SolveCardinality::Exclusive => {
-                if rules.len() > 1 {
-                    self.push_error(_SolvingError::NotExclusive);
-                    return None;
-                }
-                rules.iter().collect()
-            }
-        })
     }
 
     fn push_stack(&'a self, name: &'a str, target: &'a TypeInfo) -> Option<StepRaii> {
@@ -173,7 +152,8 @@ impl<'a> _Solver<'a> {
             .iter()
             .any(|f| f.target == step.target)
         {
-            self.push_error(_SolvingError::CyclicDependency);
+            let _raii = StepRaii::new(step, self.execution_stack.clone());
+            self.push_error(SolvingErrorReason::CyclicDependency);
             None
         } else {
             Some(StepRaii::new(step, self.execution_stack.clone()))
@@ -188,7 +168,7 @@ impl<'a> _Solver<'a> {
         let _pop_on_drop = self.push_stack(name, target)?;
         if let Some(rules) = self.solver.rules.get(target) {
             let mut solutions = Vec::new();
-            'rule: for rule in self.iterate_rule(rules, &target.solve_parameter.cardinality)? {
+            'rule: for rule in rules {
                 if rule.dependencies.is_empty() {
                     solutions.push(Solution {
                         rule: rule.clone_ref(self.py),
@@ -221,9 +201,23 @@ impl<'a> _Solver<'a> {
                 }
             }
             if solutions.is_empty() {
-                self.push_error(_SolvingError::NoSolution);
+                self.push_error(SolvingErrorReason::NoSolution);
                 None
             } else {
+                let solutions = match target.solve_parameter.cardinality {
+                    SolveCardinality::Exhaustive => solutions,
+                    SolveCardinality::Single => match solutions.into_iter().next() {
+                        Some(r) => vec![r],
+                        None => Vec::new(),
+                    },
+                    SolveCardinality::Exclusive => {
+                        if solutions.len() > 1 {
+                            self.push_error(SolvingErrorReason::NotExclusive(solutions));
+                            return None;
+                        }
+                        solutions
+                    }
+                };
                 self.solver.memo.save_memo(
                     self.py,
                     target,
@@ -244,6 +238,32 @@ pub struct Solver {
     pub memo: SolutionsMemo,
 }
 
+fn make_trace_tuple<'a>(py: Python<'a>, stack: &ExecutionStack) -> Bound<'a, PyTuple> {
+    let mut steps: Vec<Bound<PyTuple>> = Vec::new();
+    for step in stack {
+        steps.push(PyTuple::new_bound(
+            py,
+            [step.name.to_object(py), step.target.to_object(py)],
+        ));
+    }
+    PyTuple::new_bound(py, steps)
+}
+
+fn make_py_error(py: Python, stack: &ExecutionStack, reason: &SolvingErrorReason) -> PyErr {
+    let traces = make_trace_tuple(py, stack);
+    match reason {
+        SolvingErrorReason::NoSolution => {
+            errors::NoSolutionError::new_err(PyTuple::new_bound(py, [traces]).unbind())
+        }
+        SolvingErrorReason::CyclicDependency => {
+            errors::CyclicDependencyError::new_err(PyTuple::new_bound(py, [traces]).unbind())
+        }
+        SolvingErrorReason::NotExclusive(solutions) => errors::NotExclusiveError::new_err(
+            PyTuple::new_bound(py, [PyTuple::new_bound(py, solutions), traces]).unbind(),
+        ),
+    }
+}
+
 #[pymethods]
 impl Solver {
     #[new]
@@ -261,7 +281,13 @@ impl Solver {
         if let Some(solutions) = solver.solve_for("__root__", &t) {
             Ok(solutions)
         } else {
-            Err(SolvingError::new_err("Failed to solve"))
+            let errors: Vec<PyErr> = solver
+                .errors
+                .borrow()
+                .iter()
+                .map(|(s, r)| make_py_error(py, s, r))
+                .collect();
+            Err(errors::SolveFailureError::new_err(errors))
         }
     }
 }

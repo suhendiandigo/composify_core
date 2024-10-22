@@ -24,7 +24,6 @@ class Rule:
     dependencies: Dependencies
     priority: int
     is_async: bool
-    is_optional: bool
 
     def __new__(
         function: Callable,
@@ -33,7 +32,6 @@ class Rule:
         dependencies: Mapping[str, type],
         priority: int,
         is_async: bool,
-        is_optional: bool
     ): ...
 
     def __hash__(self): ...

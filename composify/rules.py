@@ -118,7 +118,6 @@ def _rule_decorator(
         name=f"{func_id} return",
         raise_type=MissingReturnTypeAnnotation,
     )
-    is_optional = is_optional or False
 
     parameter_types: Mapping[str, Any] = dict(
         (
@@ -142,7 +141,6 @@ def _rule_decorator(
         output_type=return_type_info,
         dependencies=parameter_types,
         priority=priority,
-        is_optional=is_optional,
         is_async=asyncio.iscoroutinefunction(func),
     )
     attach_rule(decorated, rule)

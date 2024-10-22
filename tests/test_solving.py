@@ -1,10 +1,13 @@
 
 from dataclasses import dataclass
+from typing import Annotated
 
 import pytest
 
 from composify.core.registry import RuleRegistry
-from composify.core.solver import Solver, SolvingError
+from composify.core.solutions import SolveCardinality
+from composify.core.solver import Solver
+from composify.errors import CyclicDependencyError, NoSolutionError, NotExclusiveError, SolveFailureError
 from composify.rules import collect_rules, rule, as_rule
 
 
@@ -55,5 +58,31 @@ def test_cyclic_solution():
     registry.add_rule(as_rule(example_cyclic))
     solver = Solver(registry)
 
-    with pytest.raises(SolvingError):
+    with pytest.raises(SolveFailureError) as exc:
         solver.solve_for(B)
+    exc.value.contains(CyclicDependencyError)
+
+
+def test_no_solution():
+    registry = RuleRegistry()
+    solver = Solver(registry)
+
+    with pytest.raises(SolveFailureError) as exc:
+        solver.solve_for(B)
+    exc.value.contains(NoSolutionError)
+
+
+@rule
+def example_a2() -> A:
+    return A(5)
+
+def test_not_exclusive():
+    registry = RuleRegistry()
+    registry.add_rule(as_rule(example_a))
+    registry.add_rule(as_rule(example_a2))
+    solver = Solver(registry)
+
+    with pytest.raises(SolveFailureError) as exc:
+        solver.solve_for(Annotated[A, SolveCardinality.Exclusive])
+    print(exc.value)
+    assert exc.value.contains(NotExclusiveError)
