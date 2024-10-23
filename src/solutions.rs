@@ -11,7 +11,7 @@ use pyo3::{
 use crate::{rules::Rule, type_info::TypeInfo};
 
 #[pyclass(get_all, frozen, eq, hash, module = "composify.core.solutions")]
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Debug)]
 pub struct SolutionArg {
     pub name: String,
     pub solution: Solution,
@@ -74,7 +74,7 @@ impl SolutionArgsCollectionIter {
 }
 
 #[pyclass(frozen, sequence, eq, hash, module = "composify.core.solutions")]
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SolutionArgsCollection(pub Vec<SolutionArg>, pub u64);
 
 impl SolutionArgsCollection {
@@ -173,6 +173,7 @@ impl Display for SolutionArgsCollection {
 }
 
 #[pyclass(get_all, frozen, eq, hash, module = "composify.core.solutions")]
+#[derive(Debug)]
 pub struct Solution {
     pub rule: Rule,
     pub args: SolutionArgsCollection,

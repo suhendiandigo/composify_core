@@ -55,7 +55,7 @@ class SolveFailureError(SolvingError):
             for error in errors
         )
         error_string = "\n".join(error_strings)
-        super().__init__(f"Failed to find solutions:\n{error_string}")
+        super().__init__(f"Solving failure:\n{error_string}")
         self.errors = errors
 
     def contains(self, exc_type: type[SolvingError]) -> bool:

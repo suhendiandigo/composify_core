@@ -54,7 +54,6 @@ impl TypeInfo {
         type_annotation: &Bound<'_, PyType>,
         metadata: Option<Bound<'_, PySequence>>,
     ) -> PyResult<TypeInfo> {
-        let t = type_annotation.downcast::<PyType>()?;
         let (attributes, qualifiers, solve_parameter) = match metadata {
             Some(metadata) => parse_metadata(&metadata)?,
             None => (
@@ -64,10 +63,10 @@ impl TypeInfo {
             ),
         };
         Ok(TypeInfo {
-            type_name: t.name()?.to_string(),
-            type_module: t.module()?.to_string(),
-            type_hash: t.hash()?,
-            inner_type: t.clone().unbind(),
+            type_name: type_annotation.name()?.to_string(),
+            type_module: type_annotation.module()?.to_string(),
+            type_hash: type_annotation.hash()?,
+            inner_type: type_annotation.clone().unbind(),
             attributes,
             qualifiers,
             solve_parameter,

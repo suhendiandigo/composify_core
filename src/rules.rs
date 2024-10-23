@@ -186,6 +186,7 @@ impl ToPyObject for Dependencies {
 }
 
 #[pyclass(get_all, frozen, eq, hash, module = "composify.core.rules")]
+#[derive(Debug)]
 pub struct Rule {
     pub function: Py<PyAny>,
     pub canonical_name: String,

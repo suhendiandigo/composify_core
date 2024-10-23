@@ -8,7 +8,7 @@ from composify.rules import as_rule, static_rule, wraps_rule
 
 def create_rule_solver(*rules) -> Solver:
     reg = RuleRegistry()
-    reg.add_rules(rules)
+    reg.add_rules(as_rule(rule) for rule in rules)
     return Solver(reg)
 
 

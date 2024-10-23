@@ -15,7 +15,7 @@ use crate::{
     type_info::TypeInfo,
 };
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 struct ExecutionStep<'a> {
     name: &'a str,
     target: &'a TypeInfo,
@@ -62,6 +62,7 @@ impl SolutionsMemo {
     }
 }
 
+#[derive(Debug)]
 pub enum SolvingErrorReason {
     CyclicDependency,
     NoSolution,
@@ -173,9 +174,10 @@ impl<'a> _Solver<'a> {
         if _pop_on_drop.is_none() {
             return Ok(None);
         }
-        let rules = if let Some(rules) = self.solver.rules.get_filtered(self.py, target)? {
+        let rules = if let Some(rules) = self.solver.rules.get(self.py, target)? {
             rules
         } else {
+            self.push_error(SolvingErrorReason::NoSolution);
             return Ok(None);
         };
         let mut solutions = Vec::new();
