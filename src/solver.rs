@@ -239,7 +239,7 @@ impl<'a> _Solver<'a> {
     }
 }
 
-#[pyclass]
+#[pyclass(module = "composify.core.solver")]
 #[derive(Clone)]
 pub struct Solver {
     pub rules: Arc<RuleRegistry>,

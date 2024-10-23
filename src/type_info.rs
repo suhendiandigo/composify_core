@@ -34,7 +34,7 @@ fn parse_metadata(
     ))
 }
 
-#[pyclass(get_all, frozen, eq, hash, module = "composify")]
+#[pyclass(get_all, frozen, eq, hash, module = "composify.core")]
 #[derive(Debug)]
 pub struct TypeInfo {
     pub type_name: String,

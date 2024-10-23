@@ -197,7 +197,7 @@ impl Display for Qualifier {
     }
 }
 
-#[pyclass(frozen, eq)]
+#[pyclass(frozen, eq, module = "composify.core.metadata")]
 #[derive(Debug, Default)]
 pub struct Qualifiers {
     qualifiers: Vec<Qualifier>,
