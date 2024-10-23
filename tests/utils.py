@@ -1,7 +1,15 @@
 from typing import Any
 
+from composify.core.registry import RuleRegistry
 from composify.core.solutions import Solution
+from composify.core.solver import Solver
 from composify.rules import as_rule, static_rule, wraps_rule
+
+
+def create_rule_solver(*rules) -> Solver:
+    reg = RuleRegistry()
+    reg.add_rules(rules)
+    return Solver(reg)
 
 
 def solution(rule: Any, **kwargs: Solution) -> Solution:
@@ -23,3 +31,22 @@ class ExecutionCounter:
             return f(*args, **kwargs)
 
         return wrapper
+
+
+def _find_difference(
+    result: Solution, expected: Solution, path: tuple
+) -> tuple | None:
+    if result.rule != expected.rule:
+        return path
+    r_depends = tuple(result.args)
+    e_depends = tuple(expected.args)
+    if len(r_depends) != len(e_depends):
+        return path
+    for (r_name, r_depend), (e_name, e_depend) in zip(r_depends, e_depends):
+        if r_name != e_name:
+            return path
+        return _find_difference(r_depend, e_depend, path + (r_name,))
+
+
+def find_difference(result: Solution, expected: Solution) -> tuple | None:
+    return _find_difference(result, expected, tuple())

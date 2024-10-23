@@ -80,9 +80,13 @@ pub struct SolutionArgsCollection(pub Vec<SolutionArg>, pub u64);
 impl SolutionArgsCollection {
     pub fn new(mut args: Vec<SolutionArg>) -> Self {
         args.sort();
-        let mut hasher = DefaultHasher::default();
-        args.hash(&mut hasher);
-        Self(args, hasher.finish())
+        let mut h = 0;
+        if !args.is_empty() {
+            let mut hasher = DefaultHasher::default();
+            args.hash(&mut hasher);
+            h = hasher.finish();
+        }
+        Self(args, h)
     }
 }
 
@@ -169,7 +173,6 @@ impl Display for SolutionArgsCollection {
 }
 
 #[pyclass(get_all, frozen, eq, hash, module = "composify.core.solutions")]
-#[derive(Hash, PartialEq, Eq)]
 pub struct Solution {
     pub rule: Rule,
     pub args: SolutionArgsCollection,
@@ -256,3 +259,18 @@ impl ToPyObject for Solution {
         self.clone_ref(py).into_py(py)
     }
 }
+
+impl Hash for Solution {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.rule.hash(state);
+        self.args.hash(state);
+    }
+}
+
+impl PartialEq for Solution {
+    fn eq(&self, other: &Self) -> bool {
+        self.rule == other.rule && self.args == other.args
+    }
+}
+
+impl Eq for Solution {}

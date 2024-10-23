@@ -30,6 +30,33 @@ impl RuleRegistry {
         self.rules.get(&key)
     }
 
+    pub fn get_filtered(&self, py: Python, type_info: &TypeInfo) -> PyResult<Option<Vec<&Rule>>> {
+        let key = type_info.type_hash;
+        let elements = if let Some(elements) = self.rules.get(&key) {
+            elements
+        } else {
+            return Ok(None);
+        };
+        // TODO: Need to check type Specificity.
+        let mut rules: Vec<&Rule> = elements
+            .iter()
+            .filter(|r| type_info.attributes.issubset(&r.output_type.attributes))
+            .collect();
+        if !type_info.qualifiers.is_empty() {
+            let mut qualified_rules = Vec::new();
+            for e in rules.into_iter() {
+                if type_info
+                    .qualifiers
+                    .qualify(py, &e.output_type.attributes)?
+                {
+                    qualified_rules.push(e);
+                }
+            }
+            rules = qualified_rules;
+        }
+        Ok(Some(rules))
+    }
+
     pub fn clone_ref(&self, py: Python) -> Self {
         let mut map = HashMap::new();
         for (key, value) in self.rules.iter() {
@@ -66,24 +93,10 @@ impl RuleRegistry {
     ) -> PyResult<Option<Bound<'py, PyTuple>>> {
         let py = type_info.py();
         let key = TypeInfo::parse(type_info)?;
-        let elements = match self.get(&key) {
+        let rules = match self.get_filtered(py, &key)? {
             Some(e) => e,
             None => return Ok(None),
         };
-        // TODO: Need to check type Specificity.
-        if key.qualifiers.is_empty() {
-            Ok(Some(PyTuple::new_bound(py, elements)))
-        } else {
-            let mut qualified_rules: Vec<&Rule> = Vec::new();
-            for e in elements {
-                let attrs = &e.output_type.attributes;
-                let qualified =
-                    key.attributes.issubset(attrs) && key.qualifiers.qualify(py, attrs)?;
-                if qualified {
-                    qualified_rules.push(e);
-                }
-            }
-            Ok(Some(PyTuple::new_bound(py, qualified_rules)))
-        }
+        Ok(Some(PyTuple::new_bound(py, rules)))
     }
 }

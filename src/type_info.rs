@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::{intern, types::PySequence};
 use std::fmt::Display;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::Hash;
 
 use crate::metadata::{MetadataSet, Qualifiers, QUALIFY_METHOD_NAME};
 use crate::solve_parameters::{SolveCardinality, SolveParameter, SolveSpecificity};
@@ -34,7 +34,7 @@ fn parse_metadata(
     ))
 }
 
-#[pyclass(get_all, frozen, module = "composify")]
+#[pyclass(get_all, frozen, eq, hash, module = "composify")]
 #[derive(Debug)]
 pub struct TypeInfo {
     pub type_name: String,
@@ -107,12 +107,6 @@ impl TypeInfo {
 
     pub fn __str__(&self) -> PyResult<String> {
         Ok(self.to_type_string())
-    }
-
-    fn __hash__(&self) -> PyResult<u64> {
-        let mut hasher = DefaultHasher::new();
-        self.hash(&mut hasher);
-        Ok(hasher.finish())
     }
 }
 

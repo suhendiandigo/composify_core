@@ -2,8 +2,8 @@ use std::fmt::Display;
 
 use pyo3::prelude::*;
 
-#[pyclass(eq, eq_int, frozen, module = "composify.core.solutions")]
-#[derive(PartialEq, Clone, Debug)]
+#[pyclass(hash, eq, eq_int, frozen, module = "composify.core.solutions")]
+#[derive(PartialEq, Clone, Debug, Hash)]
 pub enum SolveCardinality {
     /// Solve for all possible solutions.
     Exhaustive,
@@ -54,8 +54,8 @@ impl Display for SolveCardinality {
     }
 }
 
-#[pyclass(eq, eq_int, frozen, module = "composify.core.solutions")]
-#[derive(PartialEq, Clone, Debug)]
+#[pyclass(hash, eq, eq_int, frozen, module = "composify.core.solutions")]
+#[derive(PartialEq, Clone, Debug, Hash)]
 pub enum SolveSpecificity {
     /// Solve for exact type.
     Exact,

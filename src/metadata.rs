@@ -197,7 +197,7 @@ impl Display for Qualifier {
     }
 }
 
-#[pyclass]
+#[pyclass(frozen, eq)]
 #[derive(Debug, Default)]
 pub struct Qualifiers {
     qualifiers: Vec<Qualifier>,

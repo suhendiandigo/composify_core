@@ -90,7 +90,7 @@ impl DependenciesIter {
     }
 }
 
-#[pyclass(frozen, eq, module = "composify.core.rules")]
+#[pyclass(frozen, eq, hash, module = "composify.core.rules")]
 #[derive(Debug)]
 pub struct Dependencies {
     pub dependencies: Vec<Dependency>,
@@ -123,12 +123,6 @@ impl Dependencies {
 
     fn __repr__(&self) -> PyResult<String> {
         Ok(self.to_string())
-    }
-
-    fn __hash__(slf: PyRef<'_, Self>) -> PyResult<u64> {
-        let mut hasher = DefaultHasher::new();
-        slf.hash(&mut hasher);
-        Ok(hasher.finish())
     }
 }
 

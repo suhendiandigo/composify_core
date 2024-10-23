@@ -160,73 +160,81 @@ impl<'a> _Solver<'a> {
         }
     }
 
-    fn solve_for<'b: 'a>(&'b self, name: &'b str, target: &'b TypeInfo) -> Option<Vec<Solution>> {
+    fn solve_for<'b: 'a>(
+        &'b self,
+        name: &'b str,
+        target: &'b TypeInfo,
+    ) -> PyResult<Option<Vec<Solution>>> {
         if let Some(solutions) = self.solver.memo.read_memo(self.py, target) {
-            return Some(solutions);
+            return Ok(Some(solutions));
         }
         // If unnamed (_), value is immediately dropped.
-        let _pop_on_drop = self.push_stack(name, target)?;
-        if let Some(rules) = self.solver.rules.get(target) {
-            let mut solutions = Vec::new();
-            'rule: for rule in rules {
-                if rule.dependencies.is_empty() {
-                    solutions.push(Solution {
-                        rule: rule.clone_ref(self.py),
-                        args: SolutionArgsCollection::default(),
-                    });
-                } else {
-                    let mut args: Vec<SolutionArgCandidate> = Vec::new();
-                    for dependency in rule.dependencies.iter() {
-                        match self.solve_for(dependency.name.as_str(), &dependency.typing) {
-                            Some(solutions) => {
-                                args.push(SolutionArgCandidate {
-                                    name: dependency.name.to_string(),
-                                    solutions,
-                                });
-                            }
-                            None => continue 'rule,
+        let _pop_on_drop = self.push_stack(name, target);
+        if _pop_on_drop.is_none() {
+            return Ok(None);
+        }
+        let rules = if let Some(rules) = self.solver.rules.get_filtered(self.py, target)? {
+            rules
+        } else {
+            return Ok(None);
+        };
+        let mut solutions = Vec::new();
+        'rule: for rule in rules {
+            if rule.dependencies.is_empty() {
+                solutions.push(Solution {
+                    rule: rule.clone_ref(self.py),
+                    args: SolutionArgsCollection::default(),
+                });
+            } else {
+                let mut args: Vec<SolutionArgCandidate> = Vec::new();
+                for dependency in rule.dependencies.iter() {
+                    match self.solve_for(dependency.name.as_str(), &dependency.typing)? {
+                        Some(solutions) => {
+                            args.push(SolutionArgCandidate {
+                                name: dependency.name.to_string(),
+                                solutions,
+                            });
                         }
-                    }
-                    match permutate_candidates(self.py, args) {
-                        Ok(args) => {
-                            for args in args {
-                                solutions.push(Solution {
-                                    rule: rule.clone_ref(self.py),
-                                    args,
-                                });
-                            }
-                        }
-                        Err(e) => self.push_error(e),
+                        None => continue 'rule,
                     }
                 }
-            }
-            if solutions.is_empty() {
-                self.push_error(SolvingErrorReason::NoSolution);
-                None
-            } else {
-                let solutions = match target.solve_parameter.cardinality {
-                    SolveCardinality::Exhaustive => solutions,
-                    SolveCardinality::Single => match solutions.into_iter().next() {
-                        Some(r) => vec![r],
-                        None => Vec::new(),
-                    },
-                    SolveCardinality::Exclusive => {
-                        if solutions.len() > 1 {
-                            self.push_error(SolvingErrorReason::NotExclusive(solutions));
-                            return None;
+                match permutate_candidates(self.py, args) {
+                    Ok(args) => {
+                        for args in args {
+                            solutions.push(Solution {
+                                rule: rule.clone_ref(self.py),
+                                args,
+                            });
                         }
-                        solutions
                     }
-                };
-                self.solver.memo.save_memo(
-                    self.py,
-                    target,
-                    solutions.iter().map(|s| s.clone_ref(self.py)).collect(),
-                );
-                Some(solutions)
+                    Err(e) => self.push_error(e),
+                }
             }
+        }
+        if solutions.is_empty() {
+            self.push_error(SolvingErrorReason::NoSolution);
+            Ok(None)
         } else {
-            None
+            let solutions = match target.solve_parameter.cardinality {
+                SolveCardinality::Exhaustive => solutions,
+                SolveCardinality::Single => match solutions.into_iter().next() {
+                    Some(r) => vec![r],
+                    None => Vec::new(),
+                },
+                SolveCardinality::Exclusive => {
+                    if solutions.len() > 1 {
+                        self.push_error(SolvingErrorReason::NotExclusive(solutions));
+                        return Ok(None);
+                    }
+                    solutions
+                }
+            };
+            self.solver.memo.save_memo(
+                self.py,
+                target,
+                solutions.iter().map(|s| s.clone_ref(self.py)).collect(),
+            );
+            Ok(Some(solutions))
         }
     }
 }
@@ -278,7 +286,7 @@ impl Solver {
         let py = target.py();
         let t = TypeInfo::parse(target)?;
         let solver = _Solver::new(self, py);
-        if let Some(solutions) = solver.solve_for("__root__", &t) {
+        if let Some(solutions) = solver.solve_for("__root__", &t)? {
             Ok(solutions)
         } else {
             let errors: Vec<PyErr> = solver
