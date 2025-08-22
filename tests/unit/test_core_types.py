@@ -1,10 +1,13 @@
 from dataclasses import dataclass
 from typing import Annotated
 
-from composify.core import TypeInfo
-from composify.core.metadata import MetadataSet
-from composify.core.registry import RuleRegistry
-from composify.core.solutions import SolveCardinality, SolveSpecificity
+from composify.core import (
+    MetadataSet,
+    RuleRegistry,
+    SolveCardinality,
+    SolveSpecificity,
+    TypeInfo,
+)
 from composify.rules import Rule
 
 

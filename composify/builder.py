@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import Any, TypeVar
 
-from composify.core.solutions import Solution
+from composify.core import Solution
 from composify.errors import AsyncSolutionError
 
 __all__ = [

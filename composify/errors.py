@@ -3,8 +3,7 @@
 from collections.abc import Iterable, Sequence
 from typing import TypeAlias
 
-from composify.core import TypeInfo
-from composify.core.solutions import Solution
+from composify.core import Solution, TypeInfo
 
 
 class InvalidTypeAnnotation(TypeError):

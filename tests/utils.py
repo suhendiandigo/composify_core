@@ -1,8 +1,6 @@
 from typing import Any
 
-from composify.core.registry import RuleRegistry
-from composify.core.solutions import Solution
-from composify.core.solver import Solver
+from composify.core import RuleRegistry, Solution, Solver
 from composify.rules import as_rule, static_rule, wraps_rule
 
 

@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from composify.core.metadata import MetadataSet
+from composify.core import MetadataSet
 
 __all__ = ("MetadataSet", "Qualifier")
 

@@ -3,7 +3,7 @@ from typing import Annotated
 
 import pytest
 
-from composify.core.solutions import SolveCardinality
+from composify.core import SolveCardinality
 from composify.errors import NoSolutionError, SolveFailureError
 from composify.rules import collect_rules, rule
 from tests.utils import create_rule_solver, solution

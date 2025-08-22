@@ -21,7 +21,7 @@ from functools import partial, wraps
 from types import FrameType, ModuleType
 from typing import Annotated, Any, ParamSpec, TypeVar, get_type_hints
 
-from composify.core.rules import Rule
+from composify.core import Rule
 from composify.errors import (
     InvalidTypeAnnotation,
     MissingParameterTypeAnnotation,

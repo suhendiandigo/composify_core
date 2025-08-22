@@ -1,7 +1,7 @@
 """Composify framework, simplify object construction using set of rules."""
 
-from .composify import *  # noqa
+from .core import *  # noqa
 
-__doc__ = composify.__doc__
-if hasattr(composify, "__all__"):
-    __all__ = composify.__all__
+__doc__ = core.__doc__
+if hasattr(core, "__all__"):
+    __all__ = core.__all__

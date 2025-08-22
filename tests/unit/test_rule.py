@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from composify.core.solutions import SolveSpecificity
+from composify.core import SolveSpecificity
 from composify.rules import as_rule, collect_rules, rule
 
 

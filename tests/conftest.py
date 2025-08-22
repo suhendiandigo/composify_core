@@ -3,7 +3,7 @@ from itertools import zip_longest
 
 from pytest import fixture
 
-from composify.core.solutions import Solution
+from composify.core import Solution
 from tests.utils import find_difference
 
 
@@ -45,9 +45,9 @@ def _compare_solutions(
 ):
     solutions = list(solutions)
     expected_solutions = list(expected_solutions)
-    assert len(solutions) == len(
-        expected_solutions
-    ), f"different plan len {len(solutions)} != {len(expected_solutions)}"
+    assert len(solutions) == len(expected_solutions), (
+        f"different plan len {len(solutions)} != {len(expected_solutions)}"
+    )
     for index, (plan, expected) in enumerate(
         zip_longest(solutions, expected_solutions)
     ):

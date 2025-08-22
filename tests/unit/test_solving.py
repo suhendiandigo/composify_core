@@ -3,9 +3,12 @@ from typing import Annotated
 
 import pytest
 
-from composify.core.registry import RuleRegistry
-from composify.core.solutions import SolutionArgsCollection, SolveCardinality
-from composify.core.solver import Solver
+from composify.core import (
+    RuleRegistry,
+    SolutionArgsCollection,
+    SolveCardinality,
+    Solver,
+)
 from composify.errors import (
     CyclicDependencyError,
     NoSolutionError,

@@ -21,6 +21,7 @@ requires = ["maturin>=1.9.3,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
+module-name = "composify.core"
 features = ["pyo3/extension-module"]
 
 [tool.pytest.ini_options]
