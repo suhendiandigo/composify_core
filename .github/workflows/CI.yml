@@ -195,7 +195,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist
           sccache: 'true'
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -207,7 +207,7 @@ jobs:
           set -e
           python3 -m venv .venv
           source .venv/bin/activate
-          pip install composify_core --find-links dist --force-reinstall
+          pip install composify --find-links dist --force-reinstall
           pip install pytest
           pytest
 
