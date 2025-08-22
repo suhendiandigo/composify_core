@@ -3,6 +3,7 @@ use pyo3::types::PyType;
 use pyo3::{intern, types::PySequence};
 use std::fmt::Display;
 use std::hash::Hash;
+use std::sync::Arc;
 
 use crate::metadata::{MetadataSet, Qualifiers, QUALIFY_METHOD_NAME};
 use crate::solve_parameters::{SolveCardinality, SolveParameter, SolveSpecificity};
@@ -14,7 +15,7 @@ fn parse_metadata(
     let mut attributes = Vec::new();
     let mut qualifiers = Vec::new();
     let mut solve_parameter = SolveParameter::default();
-    for py_element in metadata.iter()?.flatten() {
+    for py_element in metadata.try_iter()?.flatten() {
         if py_element.hasattr(intern!(py, QUALIFY_METHOD_NAME))? {
             qualifiers.push(py_element);
         } else if let Ok(c) = py_element.downcast::<SolveCardinality>() {
@@ -34,16 +35,23 @@ fn parse_metadata(
     ))
 }
 
-#[pyclass(get_all, frozen, eq, hash, module = "composify.core")]
-#[derive(Debug)]
+#[pyclass(frozen, eq, hash, module = "composify.core")]
+#[derive(Debug, Clone)]
 pub struct TypeInfo {
+    #[pyo3(get)]
     pub type_name: String,
+    #[pyo3(get)]
     pub type_module: String,
+    #[pyo3(get)]
     pub type_hash: isize,
-    pub inner_type: Py<PyType>,
+    #[pyo3(get)]
     pub attributes: MetadataSet,
+    #[pyo3(get)]
     pub qualifiers: Qualifiers,
+    #[pyo3(get)]
     pub solve_parameter: SolveParameter,
+
+    pub inner_type: Arc<Py<PyType>>,
 }
 
 #[pymethods]
@@ -66,7 +74,7 @@ impl TypeInfo {
             type_name: type_annotation.name()?.to_string(),
             type_module: type_annotation.module()?.to_string(),
             type_hash: type_annotation.hash()?,
-            inner_type: type_annotation.clone().unbind(),
+            inner_type: Arc::new(type_annotation.clone().unbind()),
             attributes,
             qualifiers,
             solve_parameter,
@@ -84,7 +92,7 @@ impl TypeInfo {
                     &origin.downcast_into::<PyType>()?
                 } else {
                     let a = type_annotation.downcast_into::<TypeInfo>()?;
-                    return Ok(a.get().clone_ref(py));
+                    return Ok(a.get().clone());
                 }
             }
         };
@@ -107,21 +115,14 @@ impl TypeInfo {
     pub fn __str__(&self) -> PyResult<String> {
         Ok(self.to_type_string())
     }
+
+    #[getter(inner_type)]
+    pub fn get_inner_type(&self, py: Python) -> Py<PyType> {
+        self.inner_type.clone_ref(py)
+    }
 }
 
 impl TypeInfo {
-    pub fn clone_ref(&self, py: Python<'_>) -> TypeInfo {
-        TypeInfo {
-            type_name: self.type_name.clone(),
-            type_module: self.type_module.clone(),
-            type_hash: self.type_hash,
-            inner_type: self.inner_type.clone_ref(py),
-            attributes: self.attributes.clone_ref(py),
-            qualifiers: self.qualifiers.clone_ref(py),
-            solve_parameter: self.solve_parameter.clone(),
-        }
-    }
-
     #[inline(always)]
     pub fn canonical_name(&self) -> String {
         if self.type_module == "builtins" {
@@ -169,12 +170,6 @@ impl Display for TypeInfo {
             "TypeInfo({}, attrs={}, qualifiers={}, solve={})",
             self.inner_type, self.attributes, self.qualifiers, self.solve_parameter,
         )
-    }
-}
-
-impl ToPyObject for TypeInfo {
-    fn to_object(&self, py: Python<'_>) -> pyo3::Py<PyAny> {
-        self.clone_ref(py).into_py(py)
     }
 }
 

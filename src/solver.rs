@@ -46,18 +46,16 @@ fn clone_stack<'a>(stack: Ref<ExecutionStack<'a>>) -> ExecutionStack<'a> {
 pub struct SolutionsMemo(Arc<RwLock<HashMap<TypeInfo, Vec<Solution>>>>);
 
 impl SolutionsMemo {
-    pub fn read_memo(&self, py: Python, t: &TypeInfo) -> Option<Vec<Solution>> {
+    pub fn read_memo(&self, t: &TypeInfo) -> Option<Vec<Solution>> {
         match self.0.read() {
-            Ok(map) => map
-                .get(t)
-                .map(|memo| memo.iter().map(|s| s.clone_ref(py)).collect()),
+            Ok(map) => map.get(t).cloned(),
             Err(_) => None,
         }
     }
 
-    pub fn save_memo(&self, py: Python, t: &TypeInfo, solutions: Vec<Solution>) {
+    pub fn save_memo(&self, t: &TypeInfo, solutions: Vec<Solution>) {
         if let Ok(mut map) = self.0.write() {
-            map.insert(t.clone_ref(py), solutions);
+            map.insert(t.clone(), solutions);
         }
     }
 }
@@ -72,7 +70,6 @@ pub enum SolvingErrorReason {
 create_exception!(composify.core.solver, SolvingError, PyException);
 
 fn permutate_candidates(
-    py: Python,
     candidates: Vec<SolutionArgCandidate>,
 ) -> Result<Vec<SolutionArgsCollection>, SolvingErrorReason> {
     let mut curr_iteration: Vec<SolutionArgsCollection>;
@@ -95,10 +92,10 @@ fn permutate_candidates(
         next_iteration = Vec::new();
         for args in curr_iteration.into_iter() {
             for solution in c.solutions.iter() {
-                let mut args = args.clone_ref(py);
+                let mut args = args.clone();
                 args.0.push(SolutionArg {
                     name: c.name.to_string(),
-                    solution: solution.clone_ref(py),
+                    solution: solution.clone(),
                 });
                 next_iteration.push(args)
             }
@@ -166,7 +163,7 @@ impl<'a> _Solver<'a> {
         name: &'b str,
         target: &'b TypeInfo,
     ) -> PyResult<Option<Vec<Solution>>> {
-        if let Some(solutions) = self.solver.memo.read_memo(self.py, target) {
+        if let Some(solutions) = self.solver.memo.read_memo(target) {
             return Ok(Some(solutions));
         }
         // If unnamed (_), value is immediately dropped.
@@ -184,7 +181,7 @@ impl<'a> _Solver<'a> {
         'rule: for rule in rules {
             if rule.dependencies.is_empty() {
                 solutions.push(Solution {
-                    rule: rule.clone_ref(self.py),
+                    rule: rule.clone(),
                     args: SolutionArgsCollection::default(),
                 });
             } else {
@@ -200,11 +197,11 @@ impl<'a> _Solver<'a> {
                         None => continue 'rule,
                     }
                 }
-                match permutate_candidates(self.py, args) {
+                match permutate_candidates(args) {
                     Ok(args) => {
                         for args in args {
                             solutions.push(Solution {
-                                rule: rule.clone_ref(self.py),
+                                rule: rule.clone(),
                                 args,
                             });
                         }
@@ -231,11 +228,7 @@ impl<'a> _Solver<'a> {
                     solutions
                 }
             };
-            self.solver.memo.save_memo(
-                self.py,
-                target,
-                solutions.iter().map(|s| s.clone_ref(self.py)).collect(),
-            );
+            self.solver.memo.save_memo(target, solutions.clone());
             Ok(Some(solutions))
         }
     }
@@ -248,38 +241,45 @@ pub struct Solver {
     pub memo: SolutionsMemo,
 }
 
-fn make_trace_tuple<'a>(py: Python<'a>, stack: &ExecutionStack) -> Bound<'a, PyTuple> {
+fn make_trace_tuple<'a>(py: Python<'a>, stack: &ExecutionStack) -> PyResult<Bound<'a, PyTuple>> {
     let mut steps: Vec<Bound<PyTuple>> = Vec::new();
     for step in stack {
-        steps.push(PyTuple::new_bound(
+        steps.push(PyTuple::new(
             py,
-            [step.name.to_object(py), step.target.to_object(py)],
-        ));
+            [
+                step.name.into_pyobject(py)?.as_any(),
+                step.target.clone().into_pyobject(py)?.as_any(),
+            ],
+        )?);
     }
-    PyTuple::new_bound(py, steps)
+    PyTuple::new(py, steps)
 }
 
-fn make_py_error(py: Python, stack: &ExecutionStack, reason: &SolvingErrorReason) -> PyErr {
-    let traces = make_trace_tuple(py, stack);
-    match reason {
+fn make_py_error(
+    py: Python,
+    stack: &ExecutionStack,
+    reason: &SolvingErrorReason,
+) -> PyResult<PyErr> {
+    let traces = make_trace_tuple(py, stack)?;
+    Ok(match reason {
         SolvingErrorReason::NoSolution => {
-            errors::NoSolutionError::new_err(PyTuple::new_bound(py, [traces]).unbind())
+            errors::NoSolutionError::new_err(PyTuple::new(py, [traces])?.unbind())
         }
         SolvingErrorReason::CyclicDependency => {
-            errors::CyclicDependencyError::new_err(PyTuple::new_bound(py, [traces]).unbind())
+            errors::CyclicDependencyError::new_err(PyTuple::new(py, [traces])?.unbind())
         }
         SolvingErrorReason::NotExclusive(solutions) => errors::NotExclusiveError::new_err(
-            PyTuple::new_bound(py, [PyTuple::new_bound(py, solutions), traces]).unbind(),
+            PyTuple::new(py, [PyTuple::new(py, solutions.clone())?, traces])?.unbind(),
         ),
-    }
+    })
 }
 
 #[pymethods]
 impl Solver {
     #[new]
-    pub fn __new__(py: Python, registry: &RuleRegistry) -> PyResult<Self> {
+    pub fn __new__(registry: &RuleRegistry) -> PyResult<Self> {
         Ok(Self {
-            rules: Arc::new(registry.clone_ref(py)),
+            rules: Arc::new(registry.clone()),
             memo: SolutionsMemo::default(),
         })
     }
@@ -291,19 +291,13 @@ impl Solver {
         if let Some(solutions) = solver.solve_for("__root__", &t)? {
             Ok(solutions)
         } else {
-            let errors: Vec<PyErr> = solver
+            let errors: PyResult<Vec<PyErr>> = solver
                 .errors
                 .borrow()
                 .iter()
                 .map(|(s, r)| make_py_error(py, s, r))
                 .collect();
-            Err(errors::SolveFailureError::new_err(errors))
+            Err(errors::SolveFailureError::new_err(errors?))
         }
-    }
-}
-
-impl ToPyObject for Solver {
-    fn to_object(&self, py: Python) -> PyObject {
-        self.clone().into_py(py)
     }
 }

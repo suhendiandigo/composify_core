@@ -63,7 +63,7 @@ impl TypeRegistry {
 }
 
 #[pyclass(module = "composify.core.registry")]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RuleRegistry {
     rules: HashMap<isize, BinaryHeap<Rule>>,
     types: TypeRegistry,
@@ -171,17 +171,6 @@ impl RuleRegistry {
             SolveSpecificity::AllowSuperclass => self.get_super(py, type_info),
         }
     }
-
-    pub fn clone_ref(&self, py: Python) -> Self {
-        let mut map = HashMap::new();
-        for (key, value) in self.rules.iter() {
-            map.insert(*key, value.iter().map(|r| r.clone_ref(py)).collect());
-        }
-        Self {
-            rules: map,
-            types: self.types.clone(),
-        }
-    }
 }
 
 #[pymethods]
@@ -196,28 +185,29 @@ impl RuleRegistry {
         let py = rule.py();
         self.types
             .add(rule.borrow().output_type.inner_type.bind(py))?;
-        self.add(rule.get().clone_ref(py));
+        self.add(rule.get().clone());
         Ok(())
     }
 
     pub fn add_rules(&mut self, rules: &Bound<PyAny>) -> PyResult<()> {
-        // let rule = rule.downcast::<Rule>()?;
-        for rule in rules.iter()? {
+        let rules = rules.try_iter()?;
+        for rule in rules {
             let rule = rule?;
             self.add_rule(rule.downcast::<Rule>()?)?;
         }
         Ok(())
     }
+
     pub fn get_rules<'py>(
         &mut self,
         type_info: Bound<'py, PyAny>,
     ) -> PyResult<Option<Bound<'py, PyTuple>>> {
         let py = type_info.py();
         let key = TypeInfo::parse(type_info)?;
-        let rules = match self.get(py, &key)? {
-            Some(e) => e,
+        let rules: Vec<Rule> = match self.get(py, &key)? {
+            Some(e) => e.iter().map(|r| (*r).clone()).collect(),
             None => return Ok(None),
         };
-        Ok(Some(PyTuple::new_bound(py, rules)))
+        Ok(Some(PyTuple::new(py, rules)?))
     }
 }

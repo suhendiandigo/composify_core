@@ -3,15 +3,12 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
 };
 
-use pyo3::{
-    prelude::*,
-    types::{PyMapping, PyString, PyTuple},
-};
+use pyo3::{exceptions::PyIndexError, prelude::*, types::PyMapping};
 
 use crate::{rules::Rule, type_info::TypeInfo};
 
 #[pyclass(get_all, frozen, eq, hash, module = "composify.core.solutions")]
-#[derive(Hash, PartialEq, Eq, Debug)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone)]
 pub struct SolutionArg {
     pub name: String,
     pub solution: Solution,
@@ -27,21 +24,6 @@ impl SolutionArg {
 impl Display for SolutionArg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "SolutionArg({}: {})", self.name, self.solution)
-    }
-}
-
-impl SolutionArg {
-    pub fn clone_ref(&self, py: Python) -> Self {
-        SolutionArg {
-            name: self.name.clone(),
-            solution: self.solution.clone_ref(py),
-        }
-    }
-}
-
-impl ToPyObject for SolutionArg {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.clone_ref(py).into_py(py)
     }
 }
 
@@ -74,7 +56,7 @@ impl SolutionArgsCollectionIter {
 }
 
 #[pyclass(frozen, sequence, eq, hash, module = "composify.core.solutions")]
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct SolutionArgsCollection(pub Vec<SolutionArg>, pub u64);
 
 impl SolutionArgsCollection {
@@ -90,18 +72,7 @@ impl SolutionArgsCollection {
     }
 }
 
-impl ToPyObject for SolutionArgsCollection {
-    fn to_object(&self, py: Python) -> PyObject {
-        let l: Vec<SolutionArg> = self.0.iter().map(|s| s.clone_ref(py)).collect();
-        PyTuple::new_bound(py, l).unbind().into_any()
-    }
-}
-
 impl SolutionArgsCollection {
-    pub fn clone_ref(&self, py: Python) -> Self {
-        SolutionArgsCollection(self.0.iter().map(|s| s.clone_ref(py)).collect(), self.1)
-    }
-
     pub fn add(&mut self, arg: SolutionArg) {
         self.0.push(arg);
     }
@@ -114,26 +85,41 @@ impl SolutionArgsCollection {
 #[pymethods]
 impl SolutionArgsCollection {
     #[new]
-    pub fn __new__(py: Python, args: Bound<PyMapping>) -> PyResult<Self> {
-        let mut solution_args = Vec::new();
-        for arg in args.items()?.iter()? {
-            let arg = arg?;
-            let name = arg.get_item(0)?.downcast_into::<PyString>()?.to_string();
-            let solution = arg.get_item(1)?.downcast::<Solution>()?.get().clone_ref(py);
-            solution_args.push(SolutionArg { name, solution });
+    #[pyo3(signature = (args=None))]
+    pub fn __new__(args: Option<Bound<PyMapping>>) -> PyResult<Self> {
+        match args {
+            Some(args) => {
+                if args.is_empty()? {
+                    return Ok(Self::default());
+                }
+                let mut solution_args = Vec::new();
+                for arg in args.items()?.iter() {
+                    let name: String = arg.get_item(0)?.to_string();
+                    let solution = arg.get_item(1)?.downcast::<Solution>()?.get().clone();
+                    solution_args.push(SolutionArg { name, solution });
+                }
+                Ok(Self::new(solution_args))
+            }
+            None => Ok(Self::default()),
         }
-        Ok(Self::new(solution_args))
     }
 
-    fn __iter__(&self, py: Python) -> PyResult<Py<SolutionArgsCollectionIter>> {
+    pub fn __iter__(&self, py: Python) -> PyResult<Py<SolutionArgsCollectionIter>> {
         let iter = SolutionArgsCollectionIter {
-            inner: self.clone_ref(py).0.into_iter(),
+            inner: self.clone().0.into_iter(),
         };
         Py::new(py, iter)
     }
 
     pub fn __repr__(&self) -> PyResult<String> {
         Ok(self.to_string())
+    }
+
+    pub fn __getitem__(&self, i: usize) -> PyResult<SolutionArg> {
+        match self.0.get(i) {
+            Some(val) => Ok(val.clone()),
+            None => Err(PyIndexError::new_err(format!("Index out of range: {}", i))),
+        }
     }
 }
 
@@ -153,7 +139,7 @@ impl Hash for SolutionArgsCollection {
 
 impl Display for SolutionArgsCollection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_char('{')?;
+        f.write_str("SolutionArgsCollection{")?;
 
         let mut first = true;
 
@@ -173,34 +159,21 @@ impl Display for SolutionArgsCollection {
 }
 
 #[pyclass(get_all, frozen, eq, hash, module = "composify.core.solutions")]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Solution {
     pub rule: Rule,
     pub args: SolutionArgsCollection,
-}
-
-impl Solution {
-    pub fn clone_ref(&self, py: Python) -> Self {
-        Solution {
-            rule: self.rule.clone_ref(py),
-            args: self.args.clone_ref(py),
-        }
-    }
 }
 
 #[pymethods]
 impl Solution {
     #[new]
     #[pyo3(signature = (rule, args=None))]
-    pub fn __new__(
-        py: Python,
-        rule: Bound<Rule>,
-        args: Option<Bound<PyMapping>>,
-    ) -> PyResult<Self> {
+    pub fn __new__(rule: Bound<Rule>, args: Option<Bound<PyMapping>>) -> PyResult<Self> {
         Ok(Self {
-            rule: rule.get().clone_ref(py),
+            rule: rule.get().clone(),
             args: if let Some(args) = args {
-                SolutionArgsCollection::__new__(py, args)?
+                SolutionArgsCollection::__new__(Some(args))?
             } else {
                 SolutionArgsCollection::default()
             },
@@ -214,7 +187,7 @@ impl Solution {
 
     #[getter]
     pub fn output_type(slf: PyRef<Self>) -> TypeInfo {
-        slf.rule.output_type.clone_ref(slf.py())
+        slf.rule.output_type.clone()
     }
 
     #[getter]
@@ -252,12 +225,6 @@ impl Display for Solution {
                 self.args
             )
         }
-    }
-}
-
-impl ToPyObject for Solution {
-    fn to_object(&self, py: Python) -> PyObject {
-        self.clone_ref(py).into_py(py)
     }
 }
 

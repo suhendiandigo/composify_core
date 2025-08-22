@@ -1,5 +1,6 @@
 from collections.abc import Callable, Mapping, Sequence
 from enum import Enum, auto
+from typing import overload
 
 from composify.core import TypeInfo
 from composify.rules import Rule
@@ -43,6 +44,10 @@ class SolutionArg:
     def __hash__(self): ...
 
 class SolutionArgsCollection(Sequence[SolutionArg]):
+    @overload
+    def __new__(self): ...
+    @overload
+    def __new__(self, args: Mapping[str, Solution]): ...
     def __hash__(self): ...
 
 class Solution:

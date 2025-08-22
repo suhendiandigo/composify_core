@@ -4,7 +4,7 @@ from typing import Annotated
 import pytest
 
 from composify.core.registry import RuleRegistry
-from composify.core.solutions import SolveCardinality
+from composify.core.solutions import SolutionArgsCollection, SolveCardinality
 from composify.core.solver import Solver
 from composify.errors import (
     CyclicDependencyError,
@@ -49,7 +49,7 @@ def test_solving():
     assert solutions[0].rule == as_rule(example_b)
     assert solutions[0].args[0].name == "a"
     assert solutions[0].args[0].solution.rule == as_rule(example_a)
-    assert solutions[0].args[0].solution.args == ()
+    assert solutions[0].args[0].solution.args == SolutionArgsCollection()
 
 
 @rule

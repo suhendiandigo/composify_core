@@ -7,18 +7,12 @@ use std::collections::HashMap;
 use std::fmt::{Display, Write};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::slice::Iter;
+use std::sync::Arc;
 
-#[pyclass(
-    get_all,
-    frozen,
-    eq,
-    hash,
-    subclass,
-    module = "composify.core.metadata"
-)]
-#[derive(Debug, Default)]
+#[pyclass(frozen, eq, hash, subclass, module = "composify.core.metadata")]
+#[derive(Debug, Default, Clone)]
 pub struct MetadataSet {
-    map: HashMap<isize, PyObject>,
+    map: Arc<HashMap<isize, PyObject>>,
     hash: u64,
 }
 
@@ -32,7 +26,7 @@ impl MetadataSet {
             map.insert(key, item.unbind());
         }
         Ok(MetadataSet {
-            map,
+            map: Arc::new(map),
             hash: hasher.finish(),
         })
     }
@@ -51,25 +45,8 @@ impl PartialEq for MetadataSet {
 }
 
 impl MetadataSet {
-    pub fn clone_ref(&self, py: Python) -> Self {
-        let mut map = HashMap::new();
-        for (key, value) in self.map.iter() {
-            map.insert(*key, value.clone_ref(py));
-        }
-        Self {
-            map,
-            hash: self.hash,
-        }
-    }
-
     pub fn iter(&self) -> Values<isize, PyObject> {
         self.map.values()
-    }
-}
-
-impl ToPyObject for MetadataSet {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.clone_ref(py).into_py(py)
     }
 }
 
@@ -82,7 +59,7 @@ impl MetadataSet {
         let key = type_info.hash()?;
         if let Some(o) = slf.map.get(&key) {
             let py = slf.py();
-            Ok(Some(o.into_py(py).into_bound(py)))
+            Ok(Some(o.clone_ref(py).into_bound(py)))
         } else {
             Ok(None)
         }
@@ -95,7 +72,7 @@ impl MetadataSet {
         let key = type_info.hash()?;
         if let Some(o) = slf.map.get(&key) {
             let py = slf.py();
-            Ok(o.into_py(py).into_bound(py))
+            Ok(o.clone_ref(py).into_bound(py))
         } else {
             Err(PyKeyError::new_err(format!(
                 "Does not contain object of type {}",
@@ -142,10 +119,10 @@ impl Display for MetadataSet {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Qualifier {
-    inner: PyObject,
-    inner_self: Option<PyObject>,
+    inner: Arc<PyObject>,
+    inner_self: Option<Arc<PyObject>>,
 }
 
 pub const QUALIFY_METHOD_NAME: &str = "qualify";
@@ -154,12 +131,12 @@ impl Qualifier {
     pub fn new(qualifier: Bound<PyAny>) -> Self {
         if let Ok(func) = qualifier.getattr(intern!(qualifier.py(), QUALIFY_METHOD_NAME)) {
             Self {
-                inner: func.unbind(),
-                inner_self: Some(qualifier.unbind()),
+                inner: Arc::new(func.unbind()),
+                inner_self: Some(Arc::new(qualifier.unbind())),
             }
         } else {
             Self {
-                inner: qualifier.unbind(),
+                inner: Arc::new(qualifier.unbind()),
                 inner_self: None,
             }
         }
@@ -175,15 +152,8 @@ impl Qualifier {
 
     /// Invoke the inner python qualifier for an attribute set.
     pub fn qualify(&self, py: Python<'_>, attrs: &MetadataSet) -> PyResult<bool> {
-        let args = PyTuple::new_bound(py, [attrs.clone_ref(py).into_py(py)]);
+        let args = PyTuple::new(py, [attrs.clone()])?;
         self.call(&args)
-    }
-
-    pub fn clone_ref(&self, py: Python) -> Self {
-        Self {
-            inner: self.inner.clone_ref(py),
-            inner_self: self.inner_self.as_ref().map(|s| s.clone_ref(py)),
-        }
     }
 }
 
@@ -198,7 +168,7 @@ impl Display for Qualifier {
 }
 
 #[pyclass(frozen, eq, module = "composify.core.metadata")]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Qualifiers {
     qualifiers: Vec<Qualifier>,
     hash: u64,
@@ -229,7 +199,7 @@ impl Qualifiers {
     }
 
     pub fn qualify(&self, py: Python, attrs: &MetadataSet) -> PyResult<bool> {
-        let args = PyTuple::new_bound(py, [attrs.clone_ref(py).into_py(py)]);
+        let args = PyTuple::new(py, [attrs.clone()])?;
         for q in self.qualifiers.iter() {
             if !q.call(&args)? {
                 return Ok(false);
@@ -240,13 +210,6 @@ impl Qualifiers {
 }
 
 impl Qualifiers {
-    pub fn clone_ref(&self, py: Python<'_>) -> Self {
-        Self {
-            qualifiers: self.qualifiers.iter().map(|a| a.clone_ref(py)).collect(),
-            hash: self.hash,
-        }
-    }
-
     pub fn is_empty(&self) -> bool {
         self.qualifiers.is_empty()
     }
@@ -288,9 +251,3 @@ impl PartialEq for Qualifiers {
 }
 
 impl Eq for Qualifiers {}
-
-impl ToPyObject for Qualifiers {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.clone_ref(py).into_py(py)
-    }
-}

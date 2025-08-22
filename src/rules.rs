@@ -4,33 +4,15 @@ use pyo3::types::{PyMapping, PyString};
 use std::fmt::{Display, Write};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::slice::Iter;
+use std::sync::Arc;
 
 use crate::type_info::TypeInfo;
 
 #[pyclass(get_all, frozen, eq, module = "composify.core.rules")]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Dependency {
     pub name: String,
     pub typing: TypeInfo,
-}
-
-impl ToPyObject for Dependency {
-    fn to_object(&self, py: Python<'_>) -> pyo3::Py<PyAny> {
-        let d = Dependency {
-            name: self.name.clone(),
-            typing: self.typing.clone_ref(py),
-        };
-        d.into_py(py)
-    }
-}
-
-impl Dependency {
-    fn clone_ref(&self, py: Python<'_>) -> Dependency {
-        Dependency {
-            name: self.name.clone(),
-            typing: self.typing.clone_ref(py),
-        }
-    }
 }
 
 #[pymethods]
@@ -91,7 +73,7 @@ impl DependenciesIter {
 }
 
 #[pyclass(frozen, eq, hash, module = "composify.core.rules")]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Dependencies {
     pub dependencies: Vec<Dependency>,
 }
@@ -101,7 +83,7 @@ impl Dependencies {
     #[new]
     fn new(parameters: Bound<'_, PyMapping>) -> PyResult<Self> {
         let mut result = Vec::new();
-        for py_element in parameters.items()?.iter()?.flatten() {
+        for py_element in parameters.items().iter().flatten() {
             let name = py_element.get_item(0)?.downcast_into::<PyString>()?;
             let typing = py_element.get_item(1)?;
             result.push(Dependency::new(name, typing)?);
@@ -113,8 +95,7 @@ impl Dependencies {
     }
 
     fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<DependenciesIter>> {
-        let py = slf.py();
-        let d = slf.clone_ref(py);
+        let d = slf.clone();
         let iter = DependenciesIter {
             inner: d.dependencies.into_iter(),
         };
@@ -127,12 +108,6 @@ impl Dependencies {
 }
 
 impl Dependencies {
-    pub fn clone_ref(&self, py: Python<'_>) -> Self {
-        Dependencies {
-            dependencies: self.dependencies.iter().map(|d| d.clone_ref(py)).collect(),
-        }
-    }
-
     pub fn is_empty(&self) -> bool {
         self.dependencies.is_empty()
     }
@@ -177,22 +152,19 @@ impl Hash for Dependencies {
     }
 }
 
-impl ToPyObject for Dependencies {
-    fn to_object(&self, py: Python<'_>) -> pyo3::Py<PyAny> {
-        let v: Vec<Dependency> = self.dependencies.iter().map(|d| d.clone_ref(py)).collect();
-        let d = Dependencies { dependencies: v };
-        d.into_py(py)
-    }
-}
-
-#[pyclass(get_all, frozen, eq, hash, module = "composify.core.rules")]
-#[derive(Debug)]
+#[pyclass(frozen, eq, hash, module = "composify.core.rules")]
+#[derive(Debug, Clone)]
 pub struct Rule {
-    pub function: Py<PyAny>,
+    pub function: Arc<Py<PyAny>>,
+    #[pyo3(get)]
     pub canonical_name: String,
+    #[pyo3(get)]
     pub output_type: TypeInfo,
+    #[pyo3(get)]
     pub dependencies: Dependencies,
+    #[pyo3(get)]
     pub priority: i32,
+    #[pyo3(get)]
     pub is_async: bool,
 }
 
@@ -200,7 +172,6 @@ pub struct Rule {
 impl Rule {
     #[new]
     pub fn new(
-        py: Python,
         function: Bound<'_, PyAny>,
         canonical_name: String,
         output_type: Bound<'_, PyAny>,
@@ -209,16 +180,13 @@ impl Rule {
         is_async: bool,
     ) -> PyResult<Self> {
         Ok(Self {
-            function: function.into(),
+            function: Arc::new(function.into()),
             canonical_name,
             output_type: TypeInfo::parse(output_type)?,
             dependencies: if let Ok(dependencies) = dependencies.downcast::<PyMapping>() {
                 Dependencies::new(dependencies.clone())?
             } else {
-                dependencies
-                    .downcast_into::<Dependencies>()?
-                    .get()
-                    .clone_ref(py)
+                dependencies.downcast_into::<Dependencies>()?.get().clone()
             },
             priority,
             is_async,
@@ -228,18 +196,10 @@ impl Rule {
     pub fn __repr__(&self) -> PyResult<String> {
         Ok(self.to_string())
     }
-}
 
-impl Rule {
-    pub fn clone_ref(&self, py: Python<'_>) -> Self {
-        Self {
-            function: self.function.clone_ref(py),
-            canonical_name: self.canonical_name.clone(),
-            output_type: self.output_type.clone_ref(py),
-            dependencies: self.dependencies.clone_ref(py),
-            priority: self.priority,
-            is_async: self.is_async,
-        }
+    #[getter(function)]
+    pub fn get_function(&self, py: Python) -> Py<PyAny> {
+        self.function.clone_ref(py)
     }
 }
 
@@ -255,13 +215,6 @@ impl Display for Rule {
             self.is_async,
             self.dependencies,
         )
-    }
-}
-
-impl ToPyObject for Rule {
-    fn to_object(&self, py: Python<'_>) -> pyo3::Py<PyAny> {
-        let r = self.clone_ref(py);
-        r.into_py(py)
     }
 }
 
