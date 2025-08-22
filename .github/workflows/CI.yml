@@ -62,7 +62,7 @@ jobs:
           source .venv/bin/activate
           rm -r composify
           pip install composify --find-links dist --force-reinstall
-          pip install pytest
+          pip install pytest pytest-asyncio-cooperative
           pytest
       - name: pytest
         if: ${{ !startsWith(matrix.platform.target, 'x86') && matrix.platform.target != 'ppc64' }}
@@ -124,7 +124,7 @@ jobs:
             source .venv/bin/activate
             rm -r composify
             pip install composify --no-index --find-links dist --force-reinstall
-            pip install pytest
+            pip install pytest pytest-asyncio-cooperative
             pytest
       - name: pytest
         if: ${{ !startsWith(matrix.platform.target, 'x86') }}
@@ -140,7 +140,7 @@ jobs:
             python3 -m virtualenv .venv
             source .venv/bin/activate
             rm -r composify
-            pip install pytest
+            pip install pytest pytest-asyncio-cooperative
             pip install composify --find-links dist --force-reinstall
             pytest
 
@@ -179,7 +179,7 @@ jobs:
           source .venv/Scripts/activate
           rm -r composify
           pip install composify --find-links dist --force-reinstall
-          pip install pytest
+          pip install pytest pytest-asyncio-cooperative
           pytest
 
   macos:
@@ -214,7 +214,7 @@ jobs:
           source .venv/bin/activate
           rm -r composify
           pip install composify --find-links dist --force-reinstall
-          pip install pytest
+          pip install pytest pytest-asyncio-cooperative
           pytest
 
   sdist:
